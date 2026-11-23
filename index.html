@@ -3,1102 +3,593 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-<title>Recomp Macro Log</title>
+<title>Face Dash</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
 <style>
-/* Layout: a single phone-first column; summary at top, meals below, editor as a bottom sheet. */
+/* Layout: full-screen canvas game; HUD and menus are DOM overlays that clear the phone's safe areas. Single dusk-city look in both themes. */
 :root{
-  --bg:#f2f4f7; --surface:#ffffff; --sunk:#e9edf2; --ink:#121720; --muted:#5a6472; --line:#d9dfe7;
-  --accent:#2347d6; --accent-ink:#ffffff;
-  --pro:#cf4336; --carb:#b97d0c; --fat:#16857b;
-  --ok:#2b7a4b; --warn:#b4530a; --bad:#b42318;
-  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
-  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+  --night:#16133a; --panel:#221d52; --panel2:#2d2768; --ink:#fff6ea; --muted:#b8b1e8;
+  --coral:#ff6a55; --gold:#ffc93c; --teal:#2ec4b6;
+  --display:"Bungee",Impact,"Arial Black",sans-serif;
+  --body:"Rubik",system-ui,-apple-system,sans-serif;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0e1115; --surface:#161a20; --sunk:#1d222a; --ink:#e7ebf0; --muted:#98a2b0; --line:#2a313b;
-  --accent:#7d95ff; --accent-ink:#0e1115;
-  --pro:#ff7b6c; --carb:#efb440; --fat:#47c3b6;
-  --ok:#5dc489; --warn:#f3a15c; --bad:#ff8a80; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0e1115; --surface:#161a20; --sunk:#1d222a; --ink:#e7ebf0; --muted:#98a2b0; --line:#2a313b;
-  --accent:#7d95ff; --accent-ink:#0e1115;
-  --pro:#ff7b6c; --carb:#efb440; --fat:#47c3b6;
-  --ok:#5dc489; --warn:#f3a15c; --bad:#ff8a80; color-scheme:dark}
-
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
-.wrap{max-width:560px;margin:0 auto;padding-block:12px 120px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
-h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:.01em;text-wrap:balance}
-h2{font-size:22px}
-.num{font-family:var(--display);font-variant-numeric:tabular-nums}
-.muted{color:var(--muted)}
-.small{font-size:13px}
-button,input,select,textarea{font:inherit;color:inherit}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{position:fixed;inset:0;margin:0;overflow:hidden;background:var(--night);color:var(--ink);font-family:var(--body);font-size:16px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button,input{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 
-header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-header.top h1{font-size:26px;text-transform:uppercase;letter-spacing:.04em}
-.tabs{display:flex;background:var(--sunk);border-radius:10px;padding:3px;gap:2px}
-.tabs button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--muted)}
-.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0/.12)}
+.hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+.hud .score{font-family:var(--display);font-size:30px;line-height:1;text-shadow:0 2px 0 rgb(0 0 0/.35);font-variant-numeric:tabular-nums}
+.hud .best{font-size:13px;color:var(--muted);margin-top:4px}
+.hud .right{display:flex;gap:8px;align-items:center}
+.coins{font-family:var(--display);font-size:20px;display:flex;align-items:center;gap:6px;background:rgb(0 0 0/.3);border-radius:999px;padding:5px 12px 5px 6px;font-variant-numeric:tabular-nums}
+.coins i{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1a8,var(--gold) 55%,#d99a10);display:block}
+.hbtn{pointer-events:auto;width:40px;height:40px;border-radius:12px;border:0;background:rgb(0 0 0/.32);display:grid;place-items:center}
+.hbtn svg{width:20px;height:20px}
+.warn{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));font-family:var(--display);font-size:16px;color:var(--coral);background:rgb(0 0 0/.45);padding:6px 14px;border-radius:999px;pointer-events:none;white-space:nowrap}
 
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px}
-.daynav{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.daynav .label{font-weight:600}
-.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;width:38px;height:38px;display:grid;place-items:center;font-size:18px}
-.iconbtn:disabled{opacity:.35;cursor:default}
-
-.kcal{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.kcal .big{font-size:52px;line-height:.9;font-weight:700}
-.kcal .of{font-size:20px;color:var(--muted);font-weight:500}
-.kcal .left{text-align:right}
-.kcal .left .num{font-size:28px;font-weight:600;line-height:1}
-.track{height:10px;border-radius:6px;background:var(--sunk);overflow:hidden;position:relative}
-.track>i{position:absolute;inset:0 auto 0 0;border-radius:6px;background:var(--ink)}
-.macros{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.macro{display:flex;flex-direction:column;gap:6px;min-width:0}
-.macro .lab{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;gap:4px}
-.macro .val{font-size:24px;font-weight:600;line-height:1}
-.macro .val small{font-size:15px;color:var(--muted);font-weight:500}
-.macro .rem{font-size:12.5px;color:var(--muted)}
-.macro.pro .track>i{background:var(--pro)} .macro.carb .track>i{background:var(--carb)} .macro.fat .track>i{background:var(--fat)}
-.over{color:var(--warn)!important;font-weight:600}
-.tip{font-size:13.5px;background:var(--sunk);border-radius:10px;padding:10px 12px}
-.tip b{color:var(--pro)}
-
-.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.actions .btn{padding:12px 8px;font-size:14px;flex-wrap:wrap;line-height:1.2}
-.bar{display:flex;flex-direction:column;gap:10px;background:var(--sunk);border-radius:12px;padding:12px}
-.bar .row{display:flex;flex-direction:column;gap:8px}
-.bar .row .inline input{flex:1}
-.bar .row .inline .btn{flex:none}
-.results .meta{color:var(--muted);font-size:12.5px;white-space:nowrap;text-align:right}
-.results .nm{min-width:0;display:flex;flex-direction:column}
-.results .nm small{color:var(--muted);font-size:12px}
-.tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
-.btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.btn.ghost{background:transparent}
-.btn.danger{color:var(--bad);border-color:transparent;background:transparent}
-.btn:disabled{opacity:.5;cursor:default}
-.btn svg{width:18px;height:18px;flex:none}
-
-.meals{display:flex;flex-direction:column;gap:10px}
-.meal{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left;width:100%}
-.meal .thumb{width:56px;height:56px;border-radius:9px;background:var(--sunk);flex:none;object-fit:cover;display:grid;place-items:center;color:var(--muted);font-family:var(--display);font-size:20px}
-.meal .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.meal .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.meal .items{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chips{display:flex;gap:8px;font-size:12.5px;font-variant-numeric:tabular-nums;flex-wrap:wrap}
-.chips span b{font-weight:600}
-.chips .p b{color:var(--pro)} .chips .c b{color:var(--carb)} .chips .f b{color:var(--fat)}
-.meal .k{font-family:var(--display);font-size:20px;font-weight:600;flex:none;text-align:right}
-.meal .k small{display:block;font-size:11px;color:var(--muted);font-family:var(--body);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
-.empty{border:1.5px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--muted);font-size:14px}
-
-.banner{border-radius:12px;padding:12px 14px;font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--sunk)}
-.banner .btn{padding:8px 12px}
-.note{font-size:12.5px;color:var(--muted)}
-
-/* forms */
-.field{display:flex;flex-direction:column;gap:5px;min-width:0}
-.field label,.flabel{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
-input[type=text],input[type=number],input:not([type]),select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 11px;min-width:0}
-textarea{resize:vertical;min-height:62px}
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.seg{display:flex;background:var(--sunk);border-radius:10px;padding:3px;gap:2px}
-.seg button{flex:1;border:0;background:transparent;padding:7px 8px;border-radius:8px;font-size:14px;color:var(--muted);font-weight:500}
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0/.12)}
-.inline{display:flex;gap:8px}
-.calc{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;text-align:center}
-.calc div{background:var(--sunk);border-radius:10px;padding:10px 4px}
-.calc .num{font-size:24px;font-weight:600;display:block;line-height:1.1}
-.calc .t{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
-.how{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
-.how b{color:var(--ink);font-weight:600}
-
-/* weight */
-.wstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.wstats div{display:flex;flex-direction:column;gap:2px}
-.wstats .num{font-size:28px;font-weight:600;line-height:1}
-.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;background:var(--sunk)}
-.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
-.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.idle{color:var(--muted)}
-.chart{width:100%;height:auto;display:block}
-.wlist{display:flex;flex-direction:column}
-.wrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
-.wrow button{border:0;background:transparent;color:var(--muted);padding:4px 8px;font-size:13px}
-
-/* sheet */
-.scrim{position:fixed;inset:0;background:rgb(8 10 14/.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--surface);width:100%;max-width:600px;max-height:calc(100% - 24px - env(safe-area-inset-top,0px));overflow-y:auto;border-radius:18px 18px 0 0;padding-block:16px calc(16px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
-.sheet header{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.photo{display:flex;flex-direction:column;gap:10px;background:var(--sunk);border-radius:12px;padding:12px}
-.photo img{width:100%;max-height:260px;object-fit:cover;border-radius:10px}
-.photo .row{display:flex;gap:8px;flex-wrap:wrap}
-.photo .row .btn{flex:1;min-width:140px}
-.status{font-size:13.5px}
-.status.err{color:var(--bad)}
-.status.busy::before{content:"";display:inline-block;width:12px;height:12px;border:2px solid var(--accent);border-right-color:transparent;border-radius:50%;margin-right:8px;vertical-align:-1px;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.status.busy::before{animation:none}}
-.items{display:flex;flex-direction:column;gap:10px}
-.item{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
-.item .r1{display:flex;gap:8px;align-items:center}
-.item .r1 input{flex:1}
-.item .x{border:0;background:transparent;color:var(--muted);font-size:20px;width:34px;height:34px;flex:none}
-.item .r2{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr .9fr;gap:6px;align-items:end}
-.item .r2 label{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.item .r2 input{padding:8px 6px;text-align:center;font-variant-numeric:tabular-nums}
-.item .r2 .kc{font-family:var(--display);font-size:18px;font-weight:600;text-align:center;padding-bottom:6px}
-.item .src{font-size:11.5px;color:var(--muted)}
-.search{position:relative;display:flex;flex-direction:column;gap:6px}
-.results{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.results button{border:0;border-top:1px solid var(--line);background:var(--surface);text-align:left;padding:9px 12px;display:flex;justify-content:space-between;gap:8px;font-size:14px}
-.results button:first-child{border-top:0}
-.results button span:last-child{color:var(--muted);font-size:12.5px;white-space:nowrap}
-.totals{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px}
-.totals .num{font-size:26px;font-weight:600}
-.sheet footer{display:flex;gap:10px;flex-wrap:wrap}
-.sheet footer .btn{flex:1}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:40;max-width:calc(100% - 32px)}
-@media (max-width:420px){
-  .kcal .big{font-size:44px}
-  .item .r2{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .item .r2 .g{grid-column:span 2}
-}
+.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow-y:auto;background:rgb(14 11 38/.74);
+  padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.card{background:var(--panel);border-radius:22px;padding:20px;width:100%;max-width:430px;display:flex;flex-direction:column;gap:16px;box-shadow:0 18px 40px rgb(0 0 0/.4);margin:auto}
+h1{font-family:var(--display);font-weight:400;font-size:44px;line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance}
+h1 span{color:var(--coral)}
+h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-height:1.05;text-wrap:balance}
+.lead{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
+.faces{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.slot{background:var(--panel2);border-radius:16px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+.slot .role{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.slot.runner .role{color:var(--teal)} .slot.chaser .role{color:var(--coral)}
+.slot img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:4px solid var(--teal);background:var(--night)}
+.slot.chaser img{border-color:var(--coral)}
+.slot input[type=text]{width:100%;min-width:0;text-align:center;background:var(--night);border:1px solid #433c86;border-radius:10px;padding:8px;font-size:16px}
+.pbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;background:#3b3482;padding:8px 12px;font-size:14px;font-weight:500;width:100%}
+.big{border:0;border-radius:16px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:24px;padding:14px;width:100%;box-shadow:0 5px 0 #b8402f}
+.big:active{transform:translateY(3px);box-shadow:0 2px 0 #b8402f}
+.ghost{border:0;background:transparent;color:var(--muted);font-weight:500;padding:8px;text-decoration:underline;text-underline-offset:3px}
+.how{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;text-align:center;font-size:12.5px;color:var(--muted)}
+.how div{background:var(--panel2);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}
+.how b{font-size:20px;color:var(--ink);line-height:1.1}
+.note{font-size:12.5px;color:var(--muted);margin:0;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center}
+.stats div{background:var(--panel2);border-radius:12px;padding:10px 4px}
+.stats b{display:block;font-family:var(--display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.stats span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.caught{display:flex;align-items:center;gap:14px}
+.caught img{width:76px;height:76px;border-radius:50%;object-fit:cover;border:4px solid var(--coral);flex:none}
+.newbest{color:var(--gold);font-family:var(--display);font-size:16px}
+.crop{display:flex;flex-direction:column;align-items:center;gap:14px}
+#cropCv{width:260px;height:260px;max-width:100%;border-radius:16px;touch-action:none;background:#0d0b26}
+.zoom{display:flex;align-items:center;gap:10px;width:100%;max-width:260px;font-size:13px;color:var(--muted)}
+.zoom input{flex:1;accent-color:var(--coral)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.row2 button{border:0;border-radius:12px;padding:12px;font-weight:700}
+.row2 .ok{background:var(--teal);color:#06231f}
+.row2 .no{background:var(--panel2)}
+@media (max-height:640px){h1{font-size:34px}.slot img{width:72px;height:72px}.card{gap:12px;padding:16px}}
+@media (prefers-reduced-motion:reduce){.big:active{transform:none}}
 </style>
 
-<div class="wrap" id="app">
-  <header class="top">
-    <h1>Recomp Log</h1>
-    <nav class="tabs" role="tablist">
-      <button role="tab" id="tab-today" data-view="today" aria-selected="true">Today</button>
-      <button role="tab" id="tab-weight" data-view="weight" aria-selected="false">Weight</button>
-      <button role="tab" id="tab-targets" data-view="targets" aria-selected="false">Targets</button>
-    </nav>
-  </header>
-  <div id="note" class="note" hidden></div>
-  <main id="view"><div class="panel"><p class="muted">Loading your log…</p></div></main>
+<canvas id="game" aria-label="Face Dash game"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div><div class="score" id="score">0</div><div class="best" id="bestHud"></div></div>
+  <div class="right">
+    <div class="coins"><i></i><span id="coinCount">0</span></div>
+    <button class="hbtn" id="muteBtn" aria-label="Sound off"><svg viewBox="0 0 24 24" fill="none" stroke="#fff6ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path id="muteWave" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
+    <button class="hbtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" fill="#fff6ea"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+  </div>
+</div>
+<div class="warn" id="warn" hidden></div>
+
+<div class="screen" id="startScreen">
+  <div class="card">
+    <h1>Face<br><span>Dash</span></h1>
+    <p class="lead">Put a face on the runner and a face on the chaser, then dodge trains for as long as you can.</p>
+    <div class="faces">
+      <div class="slot runner">
+        <span class="role">Runner</span>
+        <img id="runnerImg" alt="Runner's face">
+        <input type="text" id="runnerName" maxlength="14" placeholder="Name" aria-label="Runner's name">
+        <label class="pbtn" for="runnerFile">Add photo</label>
+      </div>
+      <div class="slot chaser">
+        <span class="role">Chaser</span>
+        <img id="chaserImg" alt="Chaser's face">
+        <input type="text" id="chaserName" maxlength="14" placeholder="Name" aria-label="Chaser's name">
+        <label class="pbtn" for="chaserFile">Add photo</label>
+      </div>
+    </div>
+    <div class="how">
+      <div><b>←→</b>Swipe to switch lanes</div>
+      <div><b>↑</b>Swipe up to jump</div>
+      <div><b>↓</b>Swipe down to slide</div>
+      <div><b>●</b>Grab coins</div>
+    </div>
+    <button class="big" id="playBtn">Run!</button>
+    <p class="note">Photos stay on this phone. They're never uploaded.</p>
+  </div>
 </div>
 
-<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
-<input type="file" id="libIn" accept="image/*" hidden>
-<input type="file" id="barIn" accept="image/*" capture="environment" hidden>
-<input type="file" id="labelIn" accept="image/*" capture="environment" hidden>
+<div class="screen" id="cropScreen" hidden>
+  <div class="card crop">
+    <h2 id="cropTitle">Fit the face in the circle</h2>
+    <canvas id="cropCv" width="520" height="520"></canvas>
+    <div class="zoom"><span>Zoom</span><input type="range" id="zoom" min="1" max="4" step="0.01" value="1.4" aria-label="Zoom"></div>
+    <p class="note">Drag to move. Pinch or use the slider to zoom.</p>
+    <div class="row2"><button class="no" id="cropCancel">Cancel</button><button class="ok" id="cropOk">Use photo</button></div>
+  </div>
+</div>
+
+<div class="screen" id="overScreen" hidden>
+  <div class="card">
+    <div class="caught"><img id="overImg" alt=""><h2 id="overTitle">Caught!</h2></div>
+    <div class="newbest" id="newBest" hidden>New best score!</div>
+    <div class="stats">
+      <div><b id="oScore">0</b><span>Score</span></div>
+      <div><b id="oCoins">0</b><span>Coins</span></div>
+      <div><b id="oBest">0</b><span>Best</span></div>
+    </div>
+    <button class="big" id="againBtn">Run again</button>
+    <button class="ghost" id="facesBtn">Change faces</button>
+  </div>
+</div>
+
+<div class="screen" id="pauseScreen" hidden>
+  <div class="card">
+    <h2>Paused</h2>
+    <button class="big" id="resumeBtn">Keep running</button>
+    <button class="ghost" id="quitBtn">Quit to menu</button>
+  </div>
+</div>
+
+<input type="file" id="runnerFile" accept="image/*" hidden>
+<input type="file" id="chaserFile" accept="image/*" hidden>
 
 <script>
 (() => {
 "use strict";
-const LB = 0.45359237;
 const $ = s => document.querySelector(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const r1 = n => Math.round((+n || 0) * 10) / 10;
-const r5 = n => Math.round(n / 5) * 5;
-const kcalOf = (p, c, f) => 4 * (+p || 0) + 4 * (+c || 0) + 9 * (+f || 0);
-const fmt = n => Math.round(n).toLocaleString();
-const pad = n => String(n).padStart(2, "0");
-const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const dateOf = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-
-/* Per 100 g, rounded from USDA FoodData Central (cooked weight where noted). [name, protein, carbs, fat, serving g, serving label, extra search words] */
-const FOODS = [
-  // Fruit
-  ["Mango", 0.8, 15, 0.4, 165, "1 cup pieces"],
-  ["Banana", 1.1, 22.8, 0.3, 118, "1 medium"],
-  ["Apple", 0.3, 13.8, 0.2, 182, "1 medium"],
-  ["Orange", 0.9, 11.8, 0.1, 131, "1 medium"],
-  ["Pineapple", 0.5, 13.1, 0.1, 165, "1 cup chunks"],
-  ["Grapes", 0.7, 18.1, 0.2, 151, "1 cup"],
-  ["Strawberries", 0.7, 7.7, 0.3, 152, "1 cup"],
-  ["Blueberries", 0.7, 14.5, 0.3, 148, "1 cup"],
-  ["Raspberries", 1.2, 11.9, 0.7, 123, "1 cup"],
-  ["Blackberries", 1.4, 9.6, 0.5, 144, "1 cup"],
-  ["Watermelon", 0.6, 7.6, 0.2, 152, "1 cup diced"],
-  ["Cantaloupe", 0.8, 8.2, 0.2, 160, "1 cup diced", "melon"],
-  ["Peach", 0.9, 9.5, 0.3, 150, "1 medium"],
-  ["Pear", 0.4, 15.2, 0.1, 178, "1 medium"],
-  ["Kiwi", 1.1, 14.7, 0.5, 69, "1 fruit", "kiwifruit"],
-  ["Cherries", 1.1, 16, 0.2, 138, "1 cup"],
-  ["Papaya", 0.5, 10.8, 0.3, 145, "1 cup pieces"],
-  ["Plum", 0.7, 11.4, 0.3, 66, "1 fruit"],
-  ["Grapefruit", 0.8, 10.7, 0.1, 123, "½ fruit"],
-  ["Pomegranate seeds", 1.7, 18.7, 1.2, 87, "½ cup", "arils"],
-  ["Dates, Medjool", 1.8, 75, 0.2, 24, "1 date"],
-  ["Raisins", 3.1, 79.2, 0.5, 40, "¼ cup"],
-  ["Avocado", 2, 8.5, 14.7, 150, "1 medium avocado"],
-  // Vegetables
-  ["Broccoli, raw", 2.8, 6.6, 0.4, 91, "1 cup chopped"],
-  ["Broccoli, cooked", 2.4, 7.2, 0.4, 156, "1 cup"],
-  ["Spinach, raw", 2.9, 3.6, 0.4, 30, "1 cup"],
-  ["Spinach, cooked", 3, 3.8, 0.3, 180, "1 cup"],
-  ["Kale, raw", 2.9, 4.4, 1.5, 21, "1 cup"],
-  ["Romaine lettuce", 1.2, 3.3, 0.3, 47, "1 cup shredded", "salad"],
-  ["Carrot", 0.9, 9.6, 0.2, 61, "1 medium", "carrots"],
-  ["Bell pepper", 1, 6, 0.3, 119, "1 medium", "red green"],
-  ["Tomato", 0.9, 3.9, 0.2, 123, "1 medium", "tomatoes"],
-  ["Cucumber", 0.7, 3.6, 0.1, 100, "⅓ cucumber"],
-  ["Onion", 1.1, 9.3, 0.1, 110, "1 medium"],
-  ["Mushrooms", 3.1, 3.3, 0.3, 70, "1 cup sliced"],
-  ["Zucchini", 1.2, 3.1, 0.3, 124, "1 cup sliced", "courgette"],
-  ["Cauliflower", 1.9, 5, 0.3, 107, "1 cup"],
-  ["Green beans, cooked", 1.9, 7.9, 0.3, 125, "1 cup"],
-  ["Asparagus, cooked", 2.4, 4.1, 0.2, 90, "6 spears"],
-  ["Brussels sprouts, cooked", 2.6, 7.1, 0.5, 156, "1 cup"],
-  ["Sweet corn, cooked", 3.4, 21, 1.5, 145, "1 cup kernels"],
-  ["Green peas, cooked", 5.4, 15.6, 0.2, 160, "1 cup"],
-  ["Edamame", 11.9, 8.9, 5.2, 155, "1 cup shelled"],
-  ["Mixed vegetables, cooked", 2.6, 13.1, 0.2, 182, "1 cup"],
-  ["Potato, baked with skin", 2.5, 21.2, 0.1, 173, "1 medium", "potatoes"],
-  ["Sweet potato, baked", 2, 20.7, 0.2, 114, "1 medium", "yam"],
-  ["French fries", 3.4, 41.4, 14.7, 117, "1 medium order", "chips"],
-  // Meat, fish, eggs
-  ["Chicken breast, cooked", 31, 0, 3.6, 150, "1 breast"],
-  ["Chicken thigh, skinless, cooked", 24.8, 0, 8.2, 100, "1 thigh"],
-  ["Chicken wings, cooked", 27.2, 0, 19.3, 32, "1 wing"],
-  ["Ground beef 80/20, cooked", 25.9, 0, 17.6, 85, "3 oz", "mince hamburger"],
-  ["Ground beef 90/10, cooked", 26.1, 0, 11.7, 85, "3 oz", "mince lean"],
-  ["Sirloin steak, cooked", 30, 0, 6, 170, "6 oz", "beef"],
-  ["Ribeye steak, cooked", 24, 0, 20, 170, "6 oz", "beef"],
-  ["Ground turkey 93/7, cooked", 27.1, 0, 9.9, 85, "3 oz"],
-  ["Pork tenderloin, cooked", 26.2, 0, 3.5, 85, "3 oz"],
-  ["Pork chop, cooked", 27, 0, 8, 145, "1 chop"],
-  ["Bacon, cooked", 37, 1.4, 42, 8, "1 slice"],
-  ["Beef jerky", 33.2, 11, 25.6, 28, "1 oz"],
-  ["Salmon, cooked", 22.1, 0, 12.4, 140, "1 fillet", "fish"],
-  ["Cod, cooked", 22.8, 0, 0.9, 140, "1 fillet", "fish white"],
-  ["Tilapia, cooked", 26.2, 0, 2.7, 87, "1 fillet", "fish"],
-  ["Tuna, canned in water", 23.6, 0, 0.9, 113, "1 can drained", "fish"],
-  ["Shrimp, cooked", 24, 0.2, 0.3, 85, "3 oz", "prawns"],
-  ["Egg", 12.6, 0.7, 9.5, 50, "1 large", "eggs whole"],
-  ["Egg whites", 10.9, 0.7, 0.2, 33, "1 large egg white"],
-  ["Tofu, firm", 17.3, 2.8, 8.7, 126, "½ cup"],
-  ["Tempeh", 20.3, 7.6, 10.8, 84, "½ cup"],
-  // Dairy
-  ["Greek yogurt, nonfat plain", 10.3, 3.6, 0.4, 170, "1 container", "yoghurt"],
-  ["Greek yogurt, 2% plain", 9.9, 3.9, 1.9, 170, "1 container", "yoghurt"],
-  ["Yogurt, low-fat plain", 5.3, 7, 1.6, 170, "1 container", "yoghurt"],
-  ["Cottage cheese, 2%", 10.5, 4.8, 2.3, 113, "½ cup"],
-  ["Milk, whole", 3.2, 4.8, 3.3, 244, "1 cup"],
-  ["Milk, 2%", 3.3, 4.8, 2, 244, "1 cup"],
-  ["Milk, skim", 3.4, 5, 0.1, 245, "1 cup", "nonfat"],
-  ["Cheddar cheese", 24.9, 1.3, 33.1, 28, "1 oz"],
-  ["Mozzarella, part-skim", 24, 3, 16, 28, "1 oz", "cheese"],
-  ["Parmesan", 35.8, 3.2, 25.8, 5, "1 tbsp grated", "cheese"],
-  ["Feta", 14.2, 3.9, 21.3, 28, "1 oz", "cheese"],
-  ["Cream cheese", 6.2, 4.1, 34.4, 29, "2 tbsp"],
-  ["Butter", 0.9, 0.1, 81.1, 14, "1 tbsp"],
-  ["Ice cream, vanilla", 3.5, 23.6, 11, 66, "½ cup"],
-  ["Whey protein powder", 78, 8, 5, 31, "1 scoop (check your label)", "shake"],
-  // Grains and starches
-  ["White rice, cooked", 2.7, 28.2, 0.3, 158, "1 cup", "jasmine basmati"],
-  ["Brown rice, cooked", 2.6, 23, 0.9, 195, "1 cup"],
-  ["Rolled oats, dry", 13.2, 67.7, 6.5, 40, "½ cup dry", "oatmeal porridge"],
-  ["Oatmeal, cooked with water", 2.5, 12, 1.5, 234, "1 cup", "porridge"],
-  ["Pasta, cooked", 5.8, 30.9, 0.9, 140, "1 cup", "spaghetti noodles"],
-  ["Quinoa, cooked", 4.4, 21.3, 1.9, 185, "1 cup"],
-  ["Couscous, cooked", 3.8, 23.2, 0.2, 157, "1 cup"],
-  ["White bread", 9, 49, 3.2, 28, "1 slice", "toast"],
-  ["Whole wheat bread", 12.3, 43.1, 3.5, 32, "1 slice", "toast"],
-  ["Bagel, plain", 10.1, 53, 1.7, 98, "1 bagel"],
-  ["Pita, white", 9.1, 55.7, 1.2, 60, "1 pita"],
-  ["Tortilla, flour", 8.3, 49.4, 7.8, 45, "1 medium (8 in)", "wrap"],
-  ["Tortilla, corn", 5.7, 44.6, 2.9, 26, "1 small"],
-  ["Rice cakes", 8.2, 81.5, 2.8, 9, "1 cake"],
-  ["Popcorn, air-popped", 12.9, 77.8, 4.5, 8, "1 cup"],
-  ["Pizza, cheese", 11, 33, 10.5, 107, "1 slice (14 in)"],
-  // Beans
-  ["Black beans, cooked", 8.9, 23.7, 0.5, 172, "1 cup"],
-  ["Chickpeas, cooked", 8.9, 27.4, 2.6, 164, "1 cup", "garbanzo"],
-  ["Kidney beans, cooked", 8.7, 22.8, 0.5, 177, "1 cup"],
-  ["Pinto beans, cooked", 9, 26.2, 0.7, 171, "1 cup"],
-  ["Lentils, cooked", 9, 20.1, 0.4, 198, "1 cup"],
-  ["Hummus", 7.9, 14.3, 9.6, 30, "2 tbsp"],
-  // Nuts, seeds, fats
-  ["Almonds", 21.2, 21.6, 49.9, 28, "1 oz (23 nuts)"],
-  ["Peanuts, dry-roasted", 24.4, 21.3, 49.7, 28, "1 oz"],
-  ["Walnuts", 15.2, 13.7, 65.2, 28, "1 oz"],
-  ["Cashews", 18.2, 30.2, 43.8, 28, "1 oz"],
-  ["Pistachios", 20.2, 27.2, 45.3, 28, "1 oz"],
-  ["Peanut butter", 22.5, 22.3, 51.4, 32, "2 tbsp"],
-  ["Almond butter", 21, 18.8, 55.5, 32, "2 tbsp"],
-  ["Chia seeds", 16.5, 42.1, 30.7, 12, "1 tbsp"],
-  ["Flaxseed, ground", 18.3, 28.9, 42.2, 7, "1 tbsp"],
-  ["Olive oil", 0, 0, 100, 13.5, "1 tbsp", "oil"],
-  ["Avocado oil", 0, 0, 100, 14, "1 tbsp", "oil"],
-  ["Coconut oil", 0, 0, 100, 13.6, "1 tbsp", "oil"],
-  ["Mayonnaise", 1, 0.6, 74.9, 14, "1 tbsp", "mayo"],
-  ["Dark chocolate, 70–85%", 7.8, 45.9, 42.6, 28, "1 oz", "chocolate"],
-  // Sweeteners, drinks, sauces
-  ["Honey", 0.3, 82.4, 0, 21, "1 tbsp"],
-  ["Maple syrup", 0, 67, 0.1, 20, "1 tbsp"],
-  ["Sugar", 0, 100, 0, 4, "1 tsp"],
-  ["Ketchup", 1, 25.8, 0.1, 17, "1 tbsp"],
-  ["Orange juice", 0.7, 10.4, 0.2, 248, "1 cup", "oj"],
-  ["Cola (regular)", 0, 10.6, 0, 355, "1 can (355 ml)", "soda coke"],
-];
-
-const state = {
-  view: "today", dayKey: keyOf(new Date()), settings: undefined, weights: [], day: null,
-  loaded: { settings: false, day: false }, remote: false, sample: null, sampleImages: false,
-  editor: null, draft: null, myFoods: [],
+const store = {
+  get(k) { try { return localStorage.getItem("facedash:" + k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem("facedash:" + k, v); return true; } catch { return false; } },
 };
-const photoCache = {};
 
-/* ---------- storage: shared db when available, this browser otherwise ---------- */
-let backend;
-function localBackend() {
-  const L = {};
-  const read = k => { try { const v = localStorage.getItem("recomp:" + k); return v ? JSON.parse(v) : null; } catch { return null; } };
-  return {
-    sub(k, cb) { L[k] = cb; cb(read(k)); return () => { if (L[k] === cb) delete L[k]; }; },
-    async get(k) { return read(k); },
-    async set(k, d) { try { localStorage.setItem("recomp:" + k, JSON.stringify(d)); } catch { toast("This browser is out of space, so that wasn't saved."); } L[k]?.(d); },
-    async del(k) { try { localStorage.removeItem("recomp:" + k); } catch {} L[k]?.(null); },
-  };
+/* ---------- faces ---------- */
+function defaultFace(kind) {
+  const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d");
+  g.fillStyle = kind === "runner" ? "#ffcf9e" : "#c98e6a"; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = kind === "runner" ? "#5a2e1a" : "#1f1a2e";
+  g.beginPath(); g.ellipse(128, 40, 130, 70, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#1c1730";
+  g.beginPath(); g.arc(90, 120, 15, 0, 7); g.arc(166, 120, 15, 0, 7); g.fill();
+  g.strokeStyle = "#1c1730"; g.lineWidth = 10; g.lineCap = "round";
+  if (kind === "chaser") { g.beginPath(); g.moveTo(66, 88); g.lineTo(110, 104); g.moveTo(190, 88); g.lineTo(146, 104); g.stroke(); g.beginPath(); g.arc(128, 205, 34, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); }
+  else { g.beginPath(); g.arc(128, 160, 44, Math.PI * 0.15, Math.PI * 0.85); g.stroke(); }
+  return c.toDataURL("image/jpeg", 0.9);
 }
-function remoteBackend(db, id) {
-  const col = db.collection("data/users/" + id);
-  const pending = {}, busy = {};
-  async function flush(k) {
-    if (busy[k]) return; busy[k] = true;
-    while (k in pending) {
-      const d = pending[k]; delete pending[k];
-      try { d === null ? await col.doc(k).delete() : await col.doc(k).set(d); }
-      catch (e) { toast(e?.code === "quota_exceeded" ? "Storage is full. Delete some old photos to keep saving." : "Couldn't save. Check your connection and try again."); }
-    }
-    busy[k] = false;
+const faces = { runner: new Image(), chaser: new Image() };
+function setFace(kind, url, save) {
+  faces[kind].src = url;
+  $("#" + kind + "Img").src = url;
+  if (save && !store.set(kind + "Face", url)) note("Couldn't save the photo on this phone, but it works for now.");
+}
+setFace("runner", store.get("runnerFace") || defaultFace("runner"));
+setFace("chaser", store.get("chaserFace") || defaultFace("chaser"));
+$("#runnerName").value = store.get("runnerName") || "";
+$("#chaserName").value = store.get("chaserName") || "";
+["runner", "chaser"].forEach(k => $("#" + k + "Name").addEventListener("input", e => store.set(k + "Name", e.target.value.trim())));
+const nameOf = k => $("#" + k + "Name").value.trim() || (k === "runner" ? "The runner" : "The chaser");
+function note(t) { const w = $("#warn"); w.textContent = t; w.hidden = false; clearTimeout(note.t); note.t = setTimeout(() => w.hidden = true, 2600); }
+
+/* ---------- photo cropper ---------- */
+const crop = { kind: null, img: null, zoom: 1.4, ox: 0, oy: 0 };
+const cropCv = $("#cropCv"), cg = cropCv.getContext("2d");
+function drawCrop(target, size) {
+  const g = target || cg, S = size || 520, img = crop.img;
+  const base = Math.max(S / img.naturalWidth, S / img.naturalHeight) * crop.zoom;
+  const k = S / 520;
+  g.fillStyle = "#0d0b26"; g.fillRect(0, 0, S, S);
+  g.drawImage(img, S / 2 - img.naturalWidth * base / 2 + crop.ox * k, S / 2 - img.naturalHeight * base / 2 + crop.oy * k, img.naturalWidth * base, img.naturalHeight * base);
+  if (!target) {
+    g.save(); g.fillStyle = "rgba(10,8,30,.62)"; g.beginPath(); g.rect(0, 0, S, S); g.arc(S / 2, S / 2, S * 0.4, 0, Math.PI * 2, true); g.fill("evenodd");
+    g.strokeStyle = crop.kind === "runner" ? "#2ec4b6" : "#ff6a55"; g.lineWidth = 6; g.beginPath(); g.arc(S / 2, S / 2, S * 0.4, 0, Math.PI * 2); g.stroke(); g.restore();
   }
-  return {
-    sub(k, cb) { return col.doc(k).onSnapshot(s => cb(s.exists ? structuredClone(s.data()) : null, s.metadata), () => showNote("Your log can't be reached right now. Changes may not be saved.")); },
-    async get(k) { const s = await col.doc(k).get(); return s.exists ? s.data() : null; },
-    set(k, d) { pending[k] = d; return flush(k); },
-    del(k) { pending[k] = null; return flush(k); },
-  };
 }
-function showNote(t) { const n = $("#note"); n.textContent = t || ""; n.hidden = !t; }
-
-let unDay = null, loadTimer = null;
-function subDay() {
-  unDay?.(); state.day = null; state.loaded.day = false;
-  const key = state.dayKey;
-  unDay = backend.sub("d-" + key, v => {
-    if (key !== state.dayKey) return;
-    state.day = v || { entries: [] }; state.loaded.day = true; render();
-  });
-}
-
-async function init() {
-  let db = null, user = null, id = null;
-  if (window.claude?.use) {
-    try { [db, user] = await Promise.all([claude.use("db"), claude.use("user")]); id = user ? await user.id() : null; } catch {}
-    claude.use("sample").then(async s => {
-      if (!s) return;
-      const lim = await s.limits().catch(() => null);
-      state.sample = s; state.sampleImages = !!lim?.images;
-      if (state.editor) renderSheet();
-    }).catch(() => {});
-  }
-  state.remote = !!(db && id);
-  backend = state.remote ? remoteBackend(db, id) : localBackend();
-  if (state.remote) loadTimer = setTimeout(() => { if (!state.loaded.settings) showNote("Your log can't be reached yet. It will appear when the connection returns."); }, 10000);
-  else showNote("Saved in this browser only.");
-  backend.sub("settings", (v, meta) => {
-    state.settings = v; state.loaded.settings = true;
-    if (!meta || !meta.fromCache) { clearTimeout(loadTimer); if (state.remote) showNote(""); }
-    if (!v && state.view === "today" && !state.draft) state.view = "targets";
-    render();
-  });
-  backend.sub("foods", v => { state.myFoods = v?.list || []; });
-  backend.sub("weights", v => { state.weights = (v?.list || []).slice().sort((a, b) => a.d < b.d ? -1 : 1); render(); });
-  subDay();
-}
-
-/* ---------- targets ---------- */
-const ACT = [[1.2, "Desk job, lifting 0–2×/week"], [1.375, "Lifting 3–4×/week, light daily movement"], [1.55, "Lifting 4–5×/week plus an active job or 8k+ steps"], [1.725, "Hard training most days and a physical job"]];
-const PACE = [[0.1, "Gentle", "−10%"], [0.2, "Steady", "−20%"], [0.25, "Aggressive", "−25%"]];
-function calc(p) {
-  const bmr = 10 * p.kg + 6.25 * p.cm - 5 * p.age + (p.sex === "m" ? 5 : -161);
-  const tdee = bmr * p.act;
-  let kcal = tdee * (1 - p.pace);
-  kcal = Math.max(kcal, p.sex === "m" ? 1500 : 1200);
-  const protein = r5(2.2 * (p.goalKg || p.kg));
-  const fat = r5(Math.max(0.25 * kcal / 9, 0.6 * p.kg));
-  const carbs = Math.max(0, r5((kcal - protein * 4 - fat * 9) / 4));
-  return { bmr: Math.round(bmr), tdee: Math.round(tdee / 10) * 10, protein, carbs, fat, kcal: kcalOf(protein, carbs, fat) };
-}
-function targets() { const t = state.settings?.targets; return t ? { ...t, kcal: kcalOf(t.p, t.c, t.f) } : null; }
-const units = () => state.settings?.units || "lb";
-
-/* ---------- render ---------- */
-function render() {
-  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === state.view)));
-  const v = $("#view");
-  if (state.view === "targets") { if (!v.querySelector("#tform")) renderTargets(); return; }
-  if (state.view === "weight") return renderWeight();
-  renderToday();
-}
-
-function dayTotals(day) {
-  const t = { p: 0, c: 0, f: 0 };
-  for (const e of day?.entries || []) for (const i of e.items) { t.p += +i.p || 0; t.c += +i.c || 0; t.f += +i.f || 0; }
-  t.k = kcalOf(t.p, t.c, t.f); return t;
-}
-
-const ICON_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
-const ICON_BAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6v12M7 6v12M11 6v12M14 6v12M17 6v12M20 6v12"/></svg>';
-const ICON_PLUS ='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-
-function renderToday() {
-  const v = $("#view");
-  if (!state.loaded.day || state.settings === undefined) { v.innerHTML = '<div class="panel"><p class="muted">Loading your log…</p></div>'; return; }
-  const T = targets(), tot = dayTotals(state.day);
-  const isToday = state.dayKey === keyOf(new Date());
-  const d = dateOf(state.dayKey);
-  const label = isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" });
-  const sub = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined });
-  const tk = T || { p: 0, c: 0, f: 0, kcal: 0 };
-  const pct = (a, b) => b ? Math.min(100, a / b * 100) : 0;
-  const macro = (cls, name, val, tgt) => {
-    const left = tgt - val, over = tgt && left < 0;
-    return `<div class="macro ${cls}"><div class="lab"><span>${name}</span></div>
-      <div class="val num">${Math.round(val)}<small> / ${tgt ? Math.round(tgt) : "–"} g</small></div>
-      <div class="track"><i style="width:${pct(val, tgt)}%"></i></div>
-      <div class="rem ${over ? "over" : ""}">${!tgt ? "No target" : over ? `${Math.round(-left)} g over` : `${Math.round(left)} g left`}</div></div>`;
-  };
-  const kLeft = tk.kcal - tot.k;
-  let tip = "";
-  if (T) {
-    const pLeft = T.p - tot.p;
-    if (pLeft > 25 && kLeft > 0) {
-      const ratio = pLeft * 4 / kLeft;
-      tip = ratio > 0.6
-        ? `<div class="tip"><b>${Math.round(pLeft)} g protein</b> to go with ${fmt(Math.max(0, kLeft))} kcal left. Pick lean protein next: chicken breast, egg whites, Greek yogurt, whey or tuna.</div>`
-        : `<div class="tip"><b>${Math.round(pLeft)} g protein</b> to go. Hitting protein matters most for keeping muscle in a deficit.</div>`;
-    } else if (pLeft <= 0) tip = `<div class="tip">Protein target hit. Fill the rest of the day with carbs around training and plenty of vegetables.</div>`;
-  }
-  const entries = (state.day.entries || []).slice().sort((a, b) => a.t - b.t);
-  v.innerHTML = `
-  ${!T ? `<div class="banner"><span>Set your targets to see what's left for the day.</span><button class="btn primary" data-go="targets">Set targets</button></div>` : ""}
-  <section class="panel" aria-label="Daily totals">
-    <div class="daynav">
-      <button class="iconbtn" id="prevDay" aria-label="Previous day">‹</button>
-      <div style="text-align:center"><div class="label">${esc(label)}</div><div class="small muted">${esc(sub)}</div></div>
-      <button class="iconbtn" id="nextDay" aria-label="Next day" ${isToday ? "disabled" : ""}>›</button>
-    </div>
-    <div class="kcal">
-      <div><div class="big num">${fmt(tot.k)}</div><div class="of num">of ${T ? fmt(tk.kcal) : "–"} kcal</div></div>
-      <div class="left"><div class="num ${T && kLeft < 0 ? "over" : ""}">${T ? fmt(Math.abs(kLeft)) : "–"}</div><div class="small muted">${T && kLeft < 0 ? "kcal over" : "kcal left"}</div></div>
-    </div>
-    <div class="track"><i style="width:${pct(tot.k, tk.kcal)}%;background:${T && kLeft < 0 ? "var(--warn)" : "var(--accent)"}"></i></div>
-    <div class="macros">${macro("pro", "Protein", tot.p, tk.p)}${macro("carb", "Carbs", tot.c, tk.c)}${macro("fat", "Fat", tot.f, tk.f)}</div>
-    ${tip}
-  </section>
-  <div class="actions">
-    <label class="btn primary" for="camIn" id="quickPhoto">${ICON_CAM}Snap meal</label>
-    <label class="btn" for="barIn">${ICON_BAR}Scan barcode</label>
-    <button class="btn" id="addMeal">${ICON_PLUS}Add food</button>
-  </div>
-  <section class="meals" aria-label="Meals">
-    ${entries.length ? entries.map(mealCard).join("") : `<div class="empty">No meals logged ${isToday ? "yet today" : "on this day"}.<br>Snap a photo of your plate or search the food list.</div>`}
-  </section>`;
-  $("#prevDay").onclick = () => shiftDay(-1);
-  $("#nextDay").onclick = () => shiftDay(1);
-  $("#addMeal").onclick = () => openEditor(null);
-  $("#quickPhoto").addEventListener("click", () => { pendingQuick = true; });
-  v.querySelectorAll("[data-entry]").forEach(b => b.onclick = () => openEditor(b.dataset.entry));
-  v.querySelector("[data-go]")?.addEventListener("click", () => setView("targets"));
-  entries.filter(e => e.photo && !(e.id in photoCache)).forEach(loadPhoto);
-}
-function mealCard(e) {
-  const t = { p: 0, c: 0, f: 0 }; e.items.forEach(i => { t.p += +i.p || 0; t.c += +i.c || 0; t.f += +i.f || 0; });
-  const time = new Date(e.t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const img = e.photo && photoCache[e.id] ? `<img class="thumb" src="${photoCache[e.id]}" alt="">` : `<span class="thumb" aria-hidden="true">${esc((e.name || "?")[0].toUpperCase())}</span>`;
-  return `<button class="meal" data-entry="${esc(e.id)}">${img}
-    <span class="info"><span class="name">${esc(e.name || "Meal")} <span class="muted small">· ${esc(time)}</span></span>
-    <span class="items">${esc(e.items.map(i => i.name).join(", ") || "No items")}</span>
-    <span class="chips"><span class="p"><b>${Math.round(t.p)}</b> P</span><span class="c"><b>${Math.round(t.c)}</b> C</span><span class="f"><b>${Math.round(t.f)}</b> F</span></span></span>
-    <span class="k">${fmt(kcalOf(t.p, t.c, t.f))}<small>kcal</small></span></button>`;
-}
-async function loadPhoto(e) {
-  photoCache[e.id] = null;
-  try { const d = await backend.get("p-" + e.id); if (d?.img) { photoCache[e.id] = d.img; if (state.view === "today") renderToday(); } } catch {}
-}
-function shiftDay(n) {
-  const d = dateOf(state.dayKey); d.setDate(d.getDate() + n);
-  if (keyOf(d) > keyOf(new Date())) return;
-  state.dayKey = keyOf(d); subDay(); render();
-}
-function setView(v) {
-  if (v === "today" && state.dayKey !== keyOf(new Date())) { state.dayKey = keyOf(new Date()); subDay(); }
-  state.view = v; $("#view").innerHTML = ""; render();
-}
-document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setView(b.dataset.view));
-
-/* ---------- targets view ---------- */
-function renderTargets() {
-  const s = state.settings, p = s?.profile || { sex: "m", age: 30, cm: 178, kg: 86, goalKg: null, act: 1.375, pace: 0.2 };
-  const u = s?.units || "lb";
-  state.draft = { ...p, units: u, custom: s?.targets ? { ...s.targets } : null };
-  const v = $("#view");
-  v.innerHTML = `
-  <form class="panel" id="tform" novalidate>
-    <h2>Your targets</h2>
-    ${!s ? `<p class="small muted">The numbers below are an example. Enter your own stats and save.</p>` : ""}
-    <div class="grid2">
-      <div class="field"><span class="flabel">Units</span><div class="seg" id="segU"><button type="button" data-u="lb">lb / ft</button><button type="button" data-u="kg">kg / cm</button></div></div>
-      <div class="field"><span class="flabel">Sex</span><div class="seg" id="segS"><button type="button" data-s="m">Male</button><button type="button" data-s="f">Female</button></div></div>
-    </div>
-    <div class="grid3" id="hw"></div>
-    <div class="grid2">
-      <div class="field"><label for="fGoal">Goal weight (optional)</label><input id="fGoal" type="number" inputmode="decimal" min="0"></div>
-      <div class="field"><label for="fPace">Fat-loss pace</label><select id="fPace">${PACE.map(([x, n, l]) => `<option value="${x}">${n} (${l} calories)</option>`).join("")}</select></div>
-    </div>
-    <div class="field"><label for="fAct">Activity</label><select id="fAct">${ACT.map(([x, l]) => `<option value="${x}">${l}</option>`).join("")}</select></div>
-    <div class="calc" id="calc"></div>
-    <div class="how" id="how"></div>
-    <details id="cust"><summary class="small" style="cursor:pointer;font-weight:600">Adjust grams by hand</summary>
-      <div class="grid3" style="margin-top:10px">
-        <div class="field"><label for="cP">Protein g</label><input id="cP" type="number" inputmode="decimal"></div>
-        <div class="field"><label for="cC">Carbs g</label><input id="cC" type="number" inputmode="decimal"></div>
-        <div class="field"><label for="cF">Fat g</label><input id="cF" type="number" inputmode="decimal"></div>
-      </div>
-      <p class="small muted">Calories are worked out from these grams (4 kcal per gram of protein or carbs, 9 per gram of fat).</p>
-    </details>
-    <button class="btn primary" type="submit">Save targets</button>
-  </form>`;
-  const D = state.draft;
-  const hw = () => {
-    const u = D.units;
-    if (u === "lb") {
-      const inches = D.cm / 2.54; const ft = Math.floor(inches / 12), inch = Math.round(inches - ft * 12);
-      $("#hw").innerHTML = `<div class="field"><label for="fAge">Age</label><input id="fAge" type="number" inputmode="numeric" value="${D.age}"></div>
-        <div class="field"><label for="fFt">Height</label><div class="inline"><input id="fFt" type="number" inputmode="numeric" value="${ft}" aria-label="Feet" placeholder="ft"><input id="fIn" type="number" inputmode="numeric" value="${inch}" aria-label="Inches" placeholder="in"></div></div>
-        <div class="field"><label for="fW">Weight (lb)</label><input id="fW" type="number" inputmode="decimal" value="${r1(D.kg / LB)}"></div>`;
-    } else {
-      $("#hw").innerHTML = `<div class="field"><label for="fAge">Age</label><input id="fAge" type="number" inputmode="numeric" value="${D.age}"></div>
-        <div class="field"><label for="fCm">Height (cm)</label><input id="fCm" type="number" inputmode="decimal" value="${Math.round(D.cm)}"></div>
-        <div class="field"><label for="fW">Weight (kg)</label><input id="fW" type="number" inputmode="decimal" value="${r1(D.kg)}"></div>`;
-    }
-    $("#fGoal").value = D.goalKg ? r1(u === "lb" ? D.goalKg / LB : D.goalKg) : "";
-    $("#fGoal").placeholder = u === "lb" ? "lb" : "kg";
-    document.querySelectorAll("#segU button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.u === u)));
-  };
-  const readForm = () => {
-    D.age = +$("#fAge").value || 0;
-    if (D.units === "lb") { D.cm = ((+$("#fFt").value || 0) * 12 + (+$("#fIn").value || 0)) * 2.54; D.kg = (+$("#fW").value || 0) * LB; }
-    else { D.cm = +$("#fCm").value || 0; D.kg = +$("#fW").value || 0; }
-    const g = +$("#fGoal").value; D.goalKg = g > 0 ? (D.units === "lb" ? g * LB : g) : null;
-    D.act = +$("#fAct").value; D.pace = +$("#fPace").value;
-  };
-  const show = () => {
-    const ok = D.age >= 14 && D.cm > 100 && D.kg > 30;
-    if (!ok) { $("#calc").innerHTML = ""; $("#how").innerHTML = `<span>Enter your age, height and weight to calculate targets.</span>`; return; }
-    const c = calc(D);
-    const t = D.custom || { p: c.protein, c: c.carbs, f: c.fat };
-    $("#calc").innerHTML = `<div><span class="num">${fmt(kcalOf(t.p, t.c, t.f))}</span><span class="t">kcal</span></div><div><span class="num" style="color:var(--pro)">${Math.round(t.p)}</span><span class="t">Protein g</span></div><div><span class="num" style="color:var(--carb)">${Math.round(t.c)}</span><span class="t">Carbs g</span></div><div><span class="num" style="color:var(--fat)">${Math.round(t.f)}</span><span class="t">Fat g</span></div>`;
-    const wu = D.units === "lb" ? "lb" : "kg";
-    $("#how").innerHTML = `
-      <span>Maintenance: <b>${fmt(c.tdee)} kcal</b> (resting ${fmt(c.bmr)} kcal by Mifflin-St Jeor × activity ${D.act}).</span>
-      <span>Eating ${Math.round(D.pace * 100)}% below that targets roughly <b>${r1(c.tdee * D.pace * 7 / 3500 * (wu === "lb" ? 1 : LB))} ${wu}</b> of loss a week.</span>
-      <span>Protein is 1 g per lb (2.2 g/kg) of ${D.goalKg ? "goal" : "current"} body weight, the top of the range shown to protect muscle while dieting. Fat is 25% of calories; carbs fill the rest to fuel training.</span>
-      ${D.custom ? `<span><b>Using your hand-adjusted grams.</b> <button type="button" class="btn ghost" id="resetCustom" style="padding:4px 10px;display:inline-flex">Use calculated</button></span>` : ""}`;
-    $("#resetCustom")?.addEventListener("click", () => { D.custom = null; fillCustom(); show(); });
-  };
-  const fillCustom = () => { const c = calc(D), t = D.custom || { p: c.protein, c: c.carbs, f: c.fat }; $("#cP").value = Math.round(t.p); $("#cC").value = Math.round(t.c); $("#cF").value = Math.round(t.f); };
-  hw();
-  $("#fAct").value = String(ACT.reduce((a, [x]) => Math.abs(x - D.act) < Math.abs(a - D.act) ? x : a, ACT[0][0]));
-  $("#fPace").value = String(D.pace);
-  document.querySelectorAll("#segS button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.s === D.sex)); b.onclick = () => { D.sex = b.dataset.s; document.querySelectorAll("#segS button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); if (!D.custom) fillCustom(); show(); }; });
-  document.querySelectorAll("#segU button").forEach(b => b.onclick = () => { readForm(); D.units = b.dataset.u; hw(); show(); });
-  const form = $("#tform");
-  form.addEventListener("input", e => {
-    if (["cP", "cC", "cF"].includes(e.target.id)) D.custom = { p: +$("#cP").value || 0, c: +$("#cC").value || 0, f: +$("#cF").value || 0 };
-    else { readForm(); if (!D.custom) fillCustom(); }
-    show();
-  });
-  form.addEventListener("change", () => { readForm(); if (!D.custom) fillCustom(); show(); });
-  fillCustom(); show();
-  form.onsubmit = async e => {
-    e.preventDefault(); readForm();
-    if (!(D.age >= 14 && D.cm > 100 && D.kg > 30)) { toast("Enter your age, height and weight first."); return; }
-    const c = calc(D);
-    const t = D.custom || { p: c.protein, c: c.carbs, f: c.fat };
-    const { units: u, custom, ...profile } = D;
-    await backend.set("settings", { units: u, profile, targets: { p: Math.round(t.p), c: Math.round(t.c), f: Math.round(t.f) }, updated: Date.now() });
-    state.draft = null; toast("Targets saved"); setView("today");
-  };
-}
-
-/* ---------- weight view ---------- */
-function weightStats(list) {
-  if (!list.length) return null;
-  const last = dateOf(list[list.length - 1].d);
-  const daysAgo = k => Math.round((last - dateOf(k)) / 864e5);
-  const win = (a, b) => { const xs = list.filter(w => { const n = daysAgo(w.d); return n >= a && n <= b; }).map(w => w.kg); return xs.length ? { avg: xs.reduce((s, x) => s + x, 0) / xs.length, n: xs.length } : null; };
-  const cur = win(0, 6), prev = win(7, 13);
-  let rate = null; if (cur && prev && cur.n >= 2 && prev.n >= 2) rate = (cur.avg - prev.avg) / prev.avg * 100;
-  return { latest: list[list.length - 1].kg, avg: cur?.avg, change: rate == null ? null : cur.avg - prev.avg, rate };
-}
-function renderWeight() {
-  const u = units(), conv = kg => u === "lb" ? kg / LB : kg;
-  const list = state.weights, st = weightStats(list);
-  let pill = `<span class="pill idle">Log at least 2 weigh-ins a week for 2 weeks to see your trend</span>`, advice = "";
-  if (st?.rate != null) {
-    if (st.rate < -1) { pill = `<span class="pill warn">Losing fast</span>`; advice = "More than 1% a week raises the risk of losing muscle. Add about 150 kcal a day, mostly from carbs around training."; }
-    else if (st.rate <= -0.25) { pill = `<span class="pill ok">On pace</span>`; advice = "Losing 0.25–1% of body weight a week is the range for dropping fat while building or keeping muscle. Keep going."; }
-    else { pill = `<span class="pill warn">Stalled</span>`; advice = "If the average holds flat for two weeks in a row, cut about 150 kcal a day (from carbs or fat, not protein) or add a daily walk. A flat scale with a shrinking waist means recomposition is working, so measure your waist too."; }
-  }
-  const sign = n => (n > 0 ? "+" : n < 0 ? "−" : "") + r1(Math.abs(n));
-  $("#view").innerHTML = `
-  <section class="panel">
-    <h2>Weight trend</h2>
-    <form class="inline" id="wform" novalidate>
-      <input id="wIn" type="number" inputmode="decimal" placeholder="Today's weight (${u})" aria-label="Today's weight in ${u}">
-      <button class="btn primary" type="submit">Log</button>
-    </form>
-    <p class="small muted" style="margin:-6px 0 0">Weigh in the morning after the bathroom, before eating. Daily numbers swing with water and salt; the 7-day average is what counts.</p>
-    ${st ? `<div class="wstats">
-      <div><span class="flabel">Latest</span><span class="num">${r1(conv(st.latest))}</span><span class="small muted">${u}</span></div>
-      <div><span class="flabel">7-day avg</span><span class="num">${st.avg != null ? r1(conv(st.avg)) : "–"}</span><span class="small muted">${u}</span></div>
-      <div><span class="flabel">Per week</span><span class="num">${st.change != null ? sign(conv(st.change)) : "–"}</span><span class="small muted">${st.rate != null ? sign(st.rate) + "%" : u}</span></div>
-    </div>` : ""}
-    <div>${pill}</div>
-    ${advice ? `<p class="small" style="margin:0">${advice}</p>` : ""}
-    ${list.length >= 2 ? chart(list, conv, u) : ""}
-  </section>
-  ${list.length ? `<section class="panel"><h2>Weigh-ins</h2><div class="wlist">${list.slice().reverse().slice(0, 30).map(w => `<div class="wrow"><span>${esc(dateOf(w.d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }))}</span><span><b class="num" style="font-size:18px">${r1(conv(w.kg))}</b> ${u}<button data-del="${w.d}" aria-label="Delete weigh-in">Delete</button></span></div>`).join("")}</div></section>` : ""}`;
-  $("#wform").onsubmit = e => {
-    e.preventDefault();
-    const val = +$("#wIn").value; if (!(val > 0)) { toast(`Enter your weight in ${u}.`); return; }
-    const kg = u === "lb" ? val * LB : val, d = keyOf(new Date());
-    const next = state.weights.filter(w => w.d !== d).concat({ d, kg: Math.round(kg * 100) / 100 }).sort((a, b) => a.d < b.d ? -1 : 1);
-    state.weights = next; backend.set("weights", { list: next }); toast("Weight logged"); renderWeight();
-  };
-  document.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
-    if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Confirm"; return; }
-    const next = state.weights.filter(w => w.d !== b.dataset.del); state.weights = next; backend.set("weights", { list: next }); renderWeight();
-  });
-}
-function chart(list, conv, u) {
-  const pts = list.slice(-42), W = 520, H = 170, L = 40, R = 10, T = 10, B = 24;
-  const t0 = dateOf(pts[0].d).getTime(), t1 = dateOf(pts[pts.length - 1].d).getTime(), span = Math.max(1, t1 - t0);
-  const vals = pts.map(p => conv(p.kg)); let lo = Math.min(...vals), hi = Math.max(...vals);
-  if (hi - lo < 2) { const m = (hi + lo) / 2; lo = m - 1; hi = m + 1; }
-  lo = Math.floor(lo); hi = Math.ceil(hi);
-  const x = d => L + (dateOf(d).getTime() - t0) / span * (W - L - R), y = v => T + (hi - v) / (hi - lo) * (H - T - B);
-  const avg = pts.map(p => { const t = dateOf(p.d).getTime(); const w = pts.filter(q => { const s = dateOf(q.d).getTime(); return s <= t && s > t - 7 * 864e5; }); return [x(p.d), y(w.reduce((a, q) => a + conv(q.kg), 0) / w.length)]; });
-  const ticks = [lo, (lo + hi) / 2, hi];
-  const lbl = d => dateOf(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time with 7-day average">
-    ${ticks.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${r1(v)}</text>`).join("")}
-    <polyline points="${avg.map(p => p.join(",")).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
-    ${pts.map((p, i) => `<circle cx="${x(p.d)}" cy="${y(vals[i])}" r="3" fill="var(--muted)" opacity=".7"/>`).join("")}
-    <circle cx="${avg[avg.length - 1][0]}" cy="${avg[avg.length - 1][1]}" r="4.5" fill="var(--accent)"/>
-    <text x="${L}" y="${H - 6}" font-size="11" fill="var(--muted)">${lbl(pts[0].d)}</text>
-    <text x="${W - R}" y="${H - 6}" font-size="11" fill="var(--muted)" text-anchor="end">${lbl(pts[pts.length - 1].d)}</text>
-  </svg><div class="small muted">Dots: daily weigh-ins (${u}). Line: 7-day average.</div>`;
-}
-
-/* ---------- meal editor ---------- */
-let pendingQuick = false;
-function defaultName() { const h = new Date().getHours(); return h < 11 ? "Breakfast" : h < 15 ? "Lunch" : h < 17 ? "Snack" : "Dinner"; }
-function openEditor(id) {
-  const e = id ? state.day.entries.find(x => x.id === id) : null;
-  state.editor = e
-    ? { id: e.id, t: e.t, name: e.name, items: structuredClone(e.items), photo: photoCache[e.id] || null, hadPhoto: !!e.photo, photoChanged: false, aiBlob: null, notes: "", status: "", statusKind: "", query: "", codeDraft: "", needLabel: null, bstatus: "", bkind: "", sstatus: "", skind: "" }
-    : { id: null, t: null, name: defaultName(), items: [], photo: null, hadPhoto: false, photoChanged: false, aiBlob: null, notes: "", status: "", statusKind: "", query: "", codeDraft: "", needLabel: null, bstatus: "", bkind: "", sstatus: "", skind: "" };
-  if (e?.photo && !photoCache[e.id]) backend.get("p-" + e.id).then(d => { if (d?.img && state.editor?.id === e.id) { photoCache[e.id] = d.img; state.editor.photo = d.img; renderSheet(); } }).catch(() => {});
-  renderSheet();
-}
-function closeEditor() { state.editor = null; document.querySelector(".scrim")?.remove(); document.body.style.overflow = ""; }
-function renderSheet() {
-  const E = state.editor; if (!E) return;
-  let scrim = document.querySelector(".scrim");
-  const scroll = scrim?.querySelector(".sheet")?.scrollTop || 0;
-  const focusId = document.activeElement?.id; const selStart = document.activeElement?.selectionStart;
-  if (!scrim) { scrim = document.createElement("div"); scrim.className = "scrim"; document.body.appendChild(scrim); document.body.style.overflow = "hidden"; scrim.addEventListener("click", ev => { if (ev.target === scrim) closeEditor(); }); }
-  const aiOk = !!state.sample;
-  const t = { p: 0, c: 0, f: 0 }; E.items.forEach(i => { t.p += +i.p || 0; t.c += +i.c || 0; t.f += +i.f || 0; });
-  const P = parseQuery(E.query), q = P.q;
-  const res = q ? searchFoods(q).slice(0, 8) : [];
-  scrim.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
-    <header><h2 id="shTitle">${E.id ? "Edit meal" : "Log a meal"}</h2><button class="iconbtn" id="shClose" aria-label="Close">✕</button></header>
-    <div class="field"><label for="mName">Meal</label><input id="mName" value="${esc(E.name)}"></div>
-    <div class="photo">
-      ${E.photo ? `<img src="${E.photo}" alt="Meal photo">` : ""}
-      <div class="row">
-        <label class="btn" for="camIn">${ICON_CAM}${E.photo ? "Retake" : "Take photo"}</label>
-        <label class="btn" for="libIn">Choose photo</label>
-        ${E.photo ? `<button class="btn danger" id="rmPhoto" type="button">Remove photo</button>` : ""}
-      </div>
-      ${aiOk ? `<div class="field"><label for="mNotes">Details for a better estimate (optional)</label><textarea id="mNotes" placeholder="e.g. 6 oz grilled chicken, 1 cup rice, cooked in 1 tbsp olive oil">${esc(E.notes)}</textarea></div>
-      <button class="btn primary" id="estBtn" type="button" ${(E.photo && state.sampleImages && E.aiBlob) || E.notes.trim() ? "" : "disabled"}>Estimate macros${E.photo && E.aiBlob && state.sampleImages ? " from photo" : " from description"}</button>`
-      : `<p class="small muted" style="margin:0">Photos are saved with the meal. Automatic estimates from photos need this page opened in Claude.</p>`}
-      ${E.status ? `<div class="status ${E.statusKind}" role="status">${esc(E.status)}</div>` : ""}
-    </div>
-    <div class="items">
-      <span class="flabel">Foods</span>
-      ${E.items.length ? E.items.map((i, n) => `<div class="item" data-i="${n}">
-        <div class="r1"><input id="in${n}" value="${esc(i.name)}" aria-label="Food name"><button class="x" data-rm="${n}" aria-label="Remove ${esc(i.name)}">×</button></div>
-        <div class="r2">
-          <div class="field g"><label for="ig${n}">Grams</label><input id="ig${n}" type="number" inputmode="decimal" value="${r1(i.g)}"></div>
-          <div class="field"><label for="ip${n}" style="color:var(--pro)">Protein</label><input id="ip${n}" type="number" inputmode="decimal" value="${r1(i.p)}"></div>
-          <div class="field"><label for="ic${n}" style="color:var(--carb)">Carbs</label><input id="ic${n}" type="number" inputmode="decimal" value="${r1(i.c)}"></div>
-          <div class="field"><label for="if${n}" style="color:var(--fat)">Fat</label><input id="if${n}" type="number" inputmode="decimal" value="${r1(i.f)}"></div>
-          <div class="kc" id="ik${n}">${fmt(kcalOf(i.p, i.c, i.f))}<span class="small muted"> kcal</span></div>
-        </div>
-        ${i.hint ? `<div class="src">${esc(i.hint)}</div>` : ""}
-      </div>`).join("") : `<div class="empty">No foods yet. Take a photo, or search below.</div>`}
-    </div>
-    <div class="search">
-      <label class="flabel" for="fq">Add a food</label>
-      <input id="fq" value="${esc(E.query)}" placeholder="Try “100g mango”, “2 eggs” or “6 oz chicken”" autocomplete="off">
-      ${q ? `<div class="results">${res.map((f, n) => { const a = amountFor(f, P); return `<button type="button" data-res="${n}"><span class="nm"><span>${f.mine ? '<span class="tag">Saved</span> ' : ""}${esc(f.name)}</span><small>${esc(a.label)}</small></span><span class="meta">${r1(f.p * a.g / 100)} P · ${r1(f.c * a.g / 100)} C · ${r1(f.f * a.g / 100)} F<br>${fmt(kcalOf(f.p, f.c, f.f) * a.g / 100)} kcal</span></button>`; }).join("")}
-        ${state.sample ? `<button type="button" id="askClaude"><span class="nm"><span>Look up “${esc(q)}” with Claude</span><small>For foods not in the list. Saved for next time.</small></span><span></span></button>` : ""}
-        <button type="button" id="addCustom"><span class="nm"><span>Add “${esc(q)}” and type in the macros</span><small>Use the numbers from the package label</small></span><span></span></button></div>` : ""}
-      ${E.sstatus ? `<div class="status ${E.skind}" role="status">${esc(E.sstatus)}</div>` : ""}
-      <p class="small muted" style="margin:0">Type an amount with the food to get exact macros for it. Changing grams on a food rescales its macros.</p>
-    </div>
-    <div class="bar">
-      <span class="flabel">Packaged food</span>
-      <div class="row">
-        <label class="btn" for="barIn">${ICON_BAR}Scan barcode</label>
-        <form id="codeForm" class="inline" novalidate><input id="codeIn" inputmode="numeric" autocomplete="off" placeholder="or type the number" aria-label="Barcode number" value="${esc(E.codeDraft)}"><button class="btn" type="submit">Look up</button></form>
-      </div>
-      ${E.needLabel ? `<label class="btn primary" for="labelIn">${ICON_CAM}Photo of nutrition label</label>` : ""}
-      ${E.bstatus ? `<div class="status ${E.bkind}" role="status">${esc(E.bstatus)}</div>` : ""}
-    </div>
-    <div class="totals"><span class="chips"><span class="p"><b>${Math.round(t.p)}</b> g P</span><span class="c"><b>${Math.round(t.c)}</b> g C</span><span class="f"><b>${Math.round(t.f)}</b> g F</span></span><span><span class="num" id="tk">${fmt(kcalOf(t.p, t.c, t.f))}</span> kcal</span></div>
-    <footer>
-      ${E.id ? `<button class="btn danger" id="delMeal" type="button">Delete</button>` : ""}
-      <button class="btn ghost" id="cancel" type="button">Cancel</button>
-      <button class="btn primary" id="save" type="button" ${E.items.length ? "" : "disabled"}>Save meal</button>
-    </footer></div>`;
-  const sheet = scrim.querySelector(".sheet"); sheet.scrollTop = scroll;
-  if (focusId && document.getElementById(focusId)) { const el = document.getElementById(focusId); el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch {} }
-  $("#shClose").onclick = closeEditor; $("#cancel").onclick = closeEditor;
-  $("#mName").oninput = e => E.name = e.target.value;
-  $("#mNotes")?.addEventListener("input", e => { E.notes = e.target.value; const b = $("#estBtn"); const hasImg = E.photo && E.aiBlob && state.sampleImages; b.disabled = !(hasImg || E.notes.trim()); });
-  $("#estBtn")?.addEventListener("click", estimate);
-  $("#rmPhoto")?.addEventListener("click", () => { E.photo = null; E.aiBlob = null; E.photoChanged = true; renderSheet(); });
-  $("#fq").oninput = e => { E.query = e.target.value; renderSheet(); };
-  sheet.querySelectorAll("[data-res]").forEach(b => b.onclick = () => { E.sstatus = ""; addFood(res[+b.dataset.res], P); });
-  $("#askClaude")?.addEventListener("click", () => claudeLookup(P));
-  $("#addCustom")?.addEventListener("click", () => { E.items.push({ name: q, g: P.grams || 100, p: 0, c: 0, f: 0, hint: "Enter grams and macros from the nutrition label." }); E.query = ""; renderSheet(); });
-  $("#codeIn").oninput = e => E.codeDraft = e.target.value;
-  $("#codeForm").onsubmit = e => { e.preventDefault(); lookupCode(E.codeDraft); };
-  sheet.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { E.items.splice(+b.dataset.rm, 1); renderSheet(); });
-  sheet.querySelectorAll(".item").forEach(row => {
-    const n = +row.dataset.i, it = E.items[n];
-    row.querySelector(`#in${n}`).oninput = e => it.name = e.target.value;
-    row.querySelector(`#ig${n}`).oninput = e => {
-      const g = +e.target.value;
-      if (it.g > 0 && g >= 0) { const k = g / it.g; it.p *= k; it.c *= k; it.f *= k; ["p", "c", "f"].forEach(m => row.querySelector(`#i${m}${n}`).value = r1(it[m])); }
-      it.g = g; updTotals();
-    };
-    ["p", "c", "f"].forEach(m => row.querySelector(`#i${m}${n}`).oninput = e => { it[m] = +e.target.value || 0; updTotals(); });
-    function updTotals() {
-      row.querySelector(`#ik${n}`).innerHTML = `${fmt(kcalOf(it.p, it.c, it.f))}<span class="small muted"> kcal</span>`;
-      const t = { p: 0, c: 0, f: 0 }; E.items.forEach(i => { t.p += +i.p || 0; t.c += +i.c || 0; t.f += +i.f || 0; });
-      sheet.querySelector(".totals .chips").innerHTML = `<span class="p"><b>${Math.round(t.p)}</b> g P</span><span class="c"><b>${Math.round(t.c)}</b> g C</span><span class="f"><b>${Math.round(t.f)}</b> g F</span>`;
-      $("#tk").textContent = fmt(kcalOf(t.p, t.c, t.f));
-    }
-  });
-  $("#save").onclick = saveMeal;
-  $("#delMeal")?.addEventListener("click", ev => {
-    const b = ev.currentTarget; if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Tap again to delete"; return; }
-    const id = E.id; const day = structuredClone(state.day); day.entries = day.entries.filter(x => x.id !== id);
-    state.day = day; backend.set("d-" + state.dayKey, day); if (E.hadPhoto) backend.del("p-" + id); delete photoCache[id];
-    closeEditor(); toast("Meal deleted"); render();
-  });
-}
-async function saveMeal() {
-  const E = state.editor; if (!E) return;
-  const items = E.items.filter(i => i.name.trim() || i.p || i.c || i.f).map(i => ({ name: i.name.trim() || "Food", g: r1(i.g), p: r1(i.p), c: r1(i.c), f: r1(i.f) }));
-  if (!items.length) { toast("Add at least one food."); return; }
-  let renamed = false;
-  const mf = state.myFoods.map(m => { const it = E.items.find(i => i.foodId === m.id && i.name.trim() && i.name.trim() !== m.name); if (it) { renamed = true; return { ...m, name: it.name.trim().slice(0, 80) }; } return m; });
-  if (renamed) { state.myFoods = mf; backend.set("foods", { list: mf }); }
-  const id = E.id || uid();
-  let t = E.t;
-  if (!t) { const d = dateOf(state.dayKey), now = new Date(); d.setHours(now.getHours(), now.getMinutes()); t = d.getTime(); }
-  const hasPhoto = E.photoChanged ? !!E.photo : E.hadPhoto;
-  const entry = { id, t, name: E.name.trim() || "Meal", items, photo: hasPhoto };
-  const day = structuredClone(state.day || { entries: [] });
-  const ix = day.entries.findIndex(x => x.id === id); ix >= 0 ? day.entries[ix] = entry : day.entries.push(entry);
-  state.day = day;
-  if (E.photoChanged) { if (E.photo) { photoCache[id] = E.photo; backend.set("p-" + id, { img: E.photo, day: state.dayKey }); } else { delete photoCache[id]; if (E.hadPhoto) backend.del("p-" + id); } }
-  backend.set("d-" + state.dayKey, day);
-  closeEditor(); toast(ix >= 0 ? "Meal updated" : "Meal logged"); render();
-}
-
-/* photos: one small copy to keep, one larger copy for the estimate */
-async function loadImage(file) {
+async function openCrop(kind, file) {
+  if (!file) return;
   const url = URL.createObjectURL(file);
-  try { const img = new Image(); img.src = url; await img.decode(); return img; } finally { setTimeout(() => URL.revokeObjectURL(url), 0); }
+  const img = new Image(); img.src = url;
+  try { await img.decode(); } catch { URL.revokeObjectURL(url); note("That photo couldn't be opened. Try a different one."); return; }
+  Object.assign(crop, { kind, img, zoom: 1.4, ox: 0, oy: 0, url });
+  $("#zoom").value = 1.4;
+  $("#cropTitle").textContent = kind === "runner" ? "Fit the runner's face in the circle" : "Fit the chaser's face in the circle";
+  $("#cropScreen").hidden = false; drawCrop();
 }
-function scaled(img, max) {
-  const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-  const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); return c;
-}
-async function onPhoto(file) {
-  if (!file) return;
-  if (!state.editor) openEditor(null);
-  const E = state.editor;
-  E.status = "Reading photo…"; E.statusKind = "busy"; renderSheet();
-  try {
-    const img = await loadImage(file);
-    E.photo = scaled(img, 420).toDataURL("image/jpeg", 0.72);
-    E.aiBlob = await new Promise(r => scaled(img, 1280).toBlob(r, "image/jpeg", 0.85));
-    E.photoChanged = true; E.status = ""; E.statusKind = "";
-    renderSheet();
-    if (state.sample && state.sampleImages && !E.items.length) estimate();
-  } catch { E.status = "That photo couldn't be opened. Try a JPEG or PNG."; E.statusKind = "err"; renderSheet(); }
-}
-/* ---------- food search with amounts ---------- */
-const COUNTS = { "½": 0.5, half: 0.5, a: 1, an: 1, one: 1, two: 2, three: 3, four: 4 };
-function parseQuery(raw) {
-  let q = String(raw || "").toLowerCase().replace(/(\d),(\d)/g, "$1.$2").trim(), grams = null, mult = null;
-  const m = q.match(/(\d+(?:\.\d+)?)\s*(kg|kilograms?|g|grams?|gr|oz|ounces?|lbs?|pounds?|ml)(?![a-z])/);
-  if (m) {
-    const n = parseFloat(m[1]), u = m[2];
-    grams = /^k/.test(u) ? n * 1000 : /^(oz|ounce)/.test(u) ? n * 28.3495 : /^(lb|pound)/.test(u) ? n * 453.592 : n;
-    q = q.slice(0, m.index) + " " + q.slice(m.index + m[0].length);
-  } else {
-    const c = q.match(/^(\d+(?:\.\d+)?|½|half|an?|one|two|three|four)\s+/);
-    if (c) { mult = COUNTS[c[1]] ?? parseFloat(c[1]); q = q.slice(c[0].length); }
-  }
-  q = q.replace(/\b(of|x)\b/g, " ").replace(/\s+/g, " ").trim();
-  return { q, grams, mult };
-}
-function allFoods() {
-  return state.myFoods.map(m => ({ ...m, mine: true, words: "" }))
-    .concat(FOODS.map(f => ({ name: f[0], p: f[1], c: f[2], f: f[3], sg: f[4], sl: f[5], words: f[6] || "" })));
-}
-function searchFoods(q) {
-  const ws = q.split(" ").filter(Boolean).map(w => w.length > 3 ? w.replace(/(es|s)$/, "") : w);
-  return allFoods().map(f => {
-    const name = f.name.toLowerCase(), hay = name + " " + f.words.toLowerCase() + " " + String(f.sl || "").toLowerCase();
-    if (!ws.every(w => hay.includes(w))) return null;
-    let s = name.startsWith(ws[0]) ? 0 : name.split(/[\s,]+/).some(t => t.startsWith(ws[0])) ? 1 : 2;
-    if (f.mine) s -= 0.5;
-    return [s + name.length / 200, f];
-  }).filter(Boolean).sort((a, b) => a[0] - b[0]).map(x => x[1]);
-}
-function amountFor(f, P) {
-  if (P.grams != null) return { g: P.grams, label: `${r1(P.grams)} g` };
-  if (P.mult) return { g: P.mult * f.sg, label: `${P.mult} × ${f.sl} (${r1(P.mult * f.sg)} g)` };
-  return { g: f.sg, label: `${f.sl} (${r1(f.sg)} g)` };
-}
-const SRC = { label: "From the nutrition label", off: "From Open Food Facts", claude: "Claude lookup, USDA-based" };
-function addFood(f, P) {
-  const E = state.editor; if (!E || !f) return;
-  const a = amountFor(f, P || {});
-  E.items.push({ name: f.name, g: a.g, p: f.p * a.g / 100, c: f.c * a.g / 100, f: f.f * a.g / 100, foodId: f.mine || f.id ? f.id : null,
-    hint: `${SRC[f.src] || "USDA"} · per 100 g: ${r1(f.p)} P · ${r1(f.c)} C · ${r1(f.f)} F · serving ${f.sl} (${r1(f.sg)} g)` });
-  E.query = ""; renderSheet();
-}
-function saveMyFood(food) {
-  const list = state.myFoods.filter(x => x.id !== food.id && !(food.code && x.code === food.code));
-  list.unshift(food); state.myFoods = list.slice(0, 400);
-  backend.set("foods", { list: state.myFoods });
-}
-async function claudeLookup(P) {
-  const E = state.editor; if (!E || !state.sample) return;
-  E.sstatus = `Looking up “${P.q}”…`; E.skind = "busy"; renderSheet();
-  try {
-    const out = await state.sample.json(`Give the USDA FoodData Central nutrition values for this food: """${P.q.slice(0, 120)}""".
-Reply with JSON only:
-{"name":"clear food name, saying raw or cooked where it matters","per100":{"protein":0,"carbs":0,"fat":0},"serving_grams":0,"serving_label":"a typical serving, e.g. 1 cup","known":true}
-Values are grams per 100 g of the food as it is usually eaten. Use total carbohydrate. If this isn't a recognizable food, set known to false.`, { modelTier: "default" });
-    if (state.editor !== E) return;
-    const v = out?.per100;
-    if (!out || out.known === false || !v) { E.sstatus = `“${P.q}” wasn't recognized. Try a more common name, or type in the macros.`; E.skind = "err"; renderSheet(); return; }
-    const sg = +out.serving_grams > 0 ? +out.serving_grams : 100;
-    const food = { id: uid(), name: String(out.name || P.q).slice(0, 80), p: r1(Math.max(0, +v.protein || 0)), c: r1(Math.max(0, +v.carbs || 0)), f: r1(Math.max(0, +v.fat || 0)), sg, sl: String(out.serving_label || `${sg} g`).slice(0, 60), src: "claude" };
-    saveMyFood(food); E.sstatus = `Added ${food.name}. Saved to your foods for next time.`; E.skind = "";
-    addFood({ ...food, mine: true }, P);
-  } catch (e) {
-    if (state.editor !== E) return;
-    E.sstatus = ERR[e?.code] || "The lookup didn't come back. Try again, or type in the macros."; E.skind = "err"; renderSheet();
-  }
-}
+["runner", "chaser"].forEach(k => $("#" + k + "File").addEventListener("change", e => { const f = e.target.files?.[0]; e.target.value = ""; openCrop(k, f); }));
+$("#zoom").addEventListener("input", e => { crop.zoom = +e.target.value; drawCrop(); });
+const ptrs = new Map(); let pinch0 = null;
+cropCv.addEventListener("pointerdown", e => { cropCv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = { d: Math.hypot(a.x - b.x, a.y - b.y), z: crop.zoom }; } });
+cropCv.addEventListener("pointermove", e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const k = 520 / cropCv.getBoundingClientRect().width;
+  if (ptrs.size === 1) { crop.ox += (e.clientX - p.x) * k; crop.oy += (e.clientY - p.y) * k; }
+  p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 2 && pinch0) { const [a, b] = [...ptrs.values()]; crop.zoom = Math.min(4, Math.max(1, pinch0.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch0.d)); $("#zoom").value = crop.zoom; }
+  drawCrop();
+});
+const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch0 = null; };
+cropCv.addEventListener("pointerup", endPtr); cropCv.addEventListener("pointercancel", endPtr);
+function closeCrop() { $("#cropScreen").hidden = true; if (crop.url) URL.revokeObjectURL(crop.url); crop.img = null; }
+$("#cropCancel").onclick = closeCrop;
+$("#cropOk").onclick = () => {
+  const out = document.createElement("canvas"); out.width = out.height = 256;
+  const g = out.getContext("2d");
+  // the circle is 80% of the crop box; scale so it fills the output square
+  g.translate(128, 128); g.scale(1 / 0.8, 1 / 0.8); g.translate(-128, -128);
+  drawCrop(g, 256);
+  setFace(crop.kind, out.toDataURL("image/jpeg", 0.85), true);
+  closeCrop();
+};
 
-/* ---------- barcodes ---------- */
-const normCode = raw => { const d = String(raw || "").replace(/\D/g, ""); return d.length === 12 ? "0" + d : d; };
-let zxP = null;
-function loadZX() {
-  return zxP ||= new Promise((res, rej) => {
-    if (window.ZXing) return res(window.ZXing);
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
-    s.onload = () => window.ZXing ? res(window.ZXing) : rej(new Error("load"));
-    s.onerror = () => { zxP = null; rej(new Error("load")); };
-    document.head.appendChild(s);
-  });
+/* ---------- sound ---------- */
+let actx = null, muted = store.get("muted") === "1";
+function syncMute() { $("#muteWave").style.display = muted ? "none" : ""; $("#muteBtn").setAttribute("aria-label", muted ? "Sound on" : "Sound off"); }
+syncMute();
+$("#muteBtn").onclick = () => { muted = !muted; store.set("muted", muted ? "1" : "0"); syncMute(); };
+function blip(freq, dur, type = "square", vol = 0.06, slide = 0) {
+  if (muted || !actx) return;
+  const t = actx.currentTime, o = actx.createOscillator(), v = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dur);
+  v.gain.setValueAtTime(vol, t); v.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(v).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
 }
-function rotate90(c) {
-  const r = document.createElement("canvas"); r.width = c.height; r.height = c.width;
-  const g = r.getContext("2d"); g.translate(r.width, 0); g.rotate(Math.PI / 2); g.drawImage(c, 0, 0); return r;
+const sfx = {
+  coin: () => { blip(988, 0.06, "square", 0.04); setTimeout(() => blip(1319, 0.09, "square", 0.04), 55); },
+  jump: () => blip(320, 0.18, "triangle", 0.09, 2.2),
+  slide: () => blip(500, 0.18, "sawtooth", 0.03, 0.4),
+  lane: () => blip(660, 0.04, "triangle", 0.04),
+  bump: () => blip(140, 0.25, "sawtooth", 0.08, 0.5),
+  crash: () => { blip(200, 0.5, "sawtooth", 0.1, 0.25); blip(90, 0.6, "square", 0.06, 0.5); },
+};
+
+/* ---------- renderer ---------- */
+const cv = $("#game"), ctx = cv.getContext("2d");
+let W = 0, H = 0, F = 0, HOR = 0;
+const CAMZ = -7, CAMY = 3.6, LANE = 2.2, FAR = 120;
+let camX = 0;
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  F = Math.min(H * 0.95, W * 1.6); HOR = H * 0.34;
+  if (!running) drawFrame();
 }
-async function decodeBarcode(img) {
-  if ("BarcodeDetector" in window) {
-    try { const d = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] }); const r = await d.detect(img); if (r[0]?.rawValue) return r[0].rawValue; } catch {}
+window.addEventListener("resize", resize);
+function P(x, y, z) { const s = F / (z - CAMZ); return [W / 2 + (x - camX) * s, HOR + (CAMY - y) * s, s]; }
+function poly(pts, fill) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); }
+const NEAR = CAMZ + 0.8;
+function box(x0, x1, y0, y1, z0, z1, front, top, side, deco) {
+  if (z1 < NEAR || z0 > FAR) return;
+  z0 = Math.max(z0, NEAR);
+  if (x1 < camX) poly([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)], side);
+  else if (x0 > camX) poly([P(x0, y0, z0), P(x0, y1, z0), P(x0, y1, z1), P(x0, y0, z1)], side);
+  if (y1 < CAMY) poly([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)], top);
+  const a = P(x0, y1, z0), b = P(x1, y0, z0);
+  ctx.fillStyle = front; ctx.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+  if (deco) deco(a[0], a[1], b[0] - a[0], b[1] - a[1], a[2]);
+}
+const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const BUILD = ["#3a2f7a", "#4a2d6e", "#2b3d7a", "#553476", "#33306b"];
+
+function drawWorld() {
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, HOR);
+  sky.addColorStop(0, "#1b1745"); sky.addColorStop(0.65, "#7a3b78"); sky.addColorStop(1, "#ff8a5c");
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, HOR + 1);
+  ctx.fillStyle = "#ffd27a"; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(W * 0.68, HOR - F * 0.05, F * 0.07, Math.PI, 0); ctx.fill(); ctx.globalAlpha = 1;
+  // ground
+  ctx.fillStyle = "#2a2463"; ctx.fillRect(0, HOR, W, H - HOR);
+  poly([P(-3.7, 0, NEAR), P(3.7, 0, NEAR), P(3.7, 0, FAR), P(-3.7, 0, FAR)], "#3b3478");
+  // sleepers
+  const step = 1.7, off = world.dist % step;
+  for (let z = -off + step * Math.ceil((NEAR + off) / step); z < 70; z += step)
+    poly([P(-3.5, 0, z), P(3.5, 0, z), P(3.5, 0, z + 0.45), P(-3.5, 0, z + 0.45)], "#4c448f");
+  // rails
+  for (let l = -1; l <= 1; l++) for (const d of [-0.62, 0.62]) {
+    const x = l * LANE + d;
+    poly([P(x - 0.07, 0.02, NEAR), P(x + 0.07, 0.02, NEAR), P(x + 0.07, 0.02, FAR), P(x - 0.07, 0.02, FAR)], "#a79fe0");
   }
-  const Z = await loadZX();
-  const hints = new Map();
-  hints.set(Z.DecodeHintType.TRY_HARDER, true);
-  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128]);
-  const reader = new Z.MultiFormatReader(); reader.setHints(hints);
-  for (const size of [1400, 900, 2400]) {
-    const base = scaled(img, size);
-    for (const cv of [base, rotate90(base)]) {
-      try { return reader.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv)))).getText(); } catch {}
+  // buildings, far to near
+  const seg = 13, base = Math.floor(world.dist / seg);
+  for (let i = 9; i >= -1; i--) {
+    const n = base + i, z0 = n * seg - world.dist;
+    for (const side of [-1, 1]) {
+      const h = 5 + hash(n * 2 + side) * 11, wdt = 4 + hash(n * 3 + side) * 3, inner = 5.4 + hash(n * 5 + side) * 1.2;
+      const x0 = side < 0 ? -inner - wdt : inner, x1 = side < 0 ? -inner : inner + wdt;
+      const col = BUILD[Math.floor(hash(n * 7 + side) * BUILD.length)];
+      box(x0, x1, 0, h, z0 + 1, z0 + seg - 1, col, shade(col, 18), shade(col, -14), (x, y, w, hh, s) => {
+        ctx.fillStyle = "rgba(255,214,140,.55)";
+        const cols = 3, rows = Math.floor(h / 1.6);
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (hash(n * 11 + r * 7 + c + side) > 0.45)
+          ctx.fillRect(x + w * (0.12 + c * 0.3), y + hh * (r + 0.3) / rows, w * 0.16, hh * 0.45 / rows);
+      });
     }
   }
-  return null;
 }
-async function fetchOFF(code) {
-  try {
-    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 6000);
-    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,nutriments,serving_size,serving_quantity`, { signal: ctl.signal });
-    clearTimeout(timer);
-    if (!r.ok) return null;
-    const pr = (await r.json())?.product, n = pr?.nutriments;
-    if (!n || (n.proteins_100g == null && n.carbohydrates_100g == null && n.fat_100g == null)) return null;
-    const sg = +pr.serving_quantity > 0 ? +pr.serving_quantity : 100;
-    const name = [String(pr.brands || "").split(",")[0], pr.product_name].filter(Boolean).join(" ").trim() || `Product ${code}`;
-    return { id: uid(), code, name: name.slice(0, 80), p: r1(+n.proteins_100g || 0), c: r1(+n.carbohydrates_100g || 0), f: r1(+n.fat_100g || 0), sg, sl: String(pr.serving_size || `${sg} g`).slice(0, 60), src: "off" };
-  } catch { return null; }
-}
-async function lookupCode(raw) {
-  const E = state.editor; if (!E) return;
-  const code = normCode(raw); E.codeDraft = code;
-  if (code.length < 8 || code.length > 14) { E.bstatus = "A barcode number has 8 to 13 digits. Check the number under the bars."; E.bkind = "err"; E.needLabel = null; renderSheet(); return; }
-  E.needLabel = null;
-  const saved = state.myFoods.find(x => x.code === code);
-  if (saved) { E.bstatus = `Found “${saved.name}” in your saved foods. Added 1 serving; change the grams to match what you had.`; E.bkind = ""; addFood({ ...saved, mine: true }, {}); return; }
-  E.bstatus = `Looking up ${code}…`; E.bkind = "busy"; renderSheet();
-  const off = await fetchOFF(code);
-  if (state.editor !== E) return;
-  if (off) {
-    saveMyFood(off);
-    E.bstatus = `Found “${off.name}”. Added 1 serving (${off.sl}). Check it against the package.`; E.bkind = "";
-    addFood({ ...off, mine: true }, {}); return;
-  }
-  if (state.sample && state.sampleImages) {
-    E.needLabel = code;
-    E.bstatus = `Barcode ${code} isn't saved yet. Take a photo of the nutrition facts label and Claude will read it. After that, scanning this barcode fills in the macros right away.`;
-  } else E.bstatus = `Barcode ${code} wasn't found. Add the food above and type in the numbers from its label.`;
-  E.bkind = ""; renderSheet();
-}
-async function onBarcodePhoto(file) {
-  if (!file) return;
-  if (!state.editor) openEditor(null);
-  const E = state.editor;
-  E.bstatus = "Reading barcode…"; E.bkind = "busy"; E.needLabel = null; renderSheet();
-  try {
-    const img = await loadImage(file);
-    const code = await decodeBarcode(img);
-    if (state.editor !== E) return;
-    if (!code) { E.bstatus = "No barcode found in that photo. Fill the frame with the barcode, hold steady in good light and try again, or type the number."; E.bkind = "err"; renderSheet(); return; }
-    await lookupCode(code);
-  } catch {
-    if (state.editor !== E) return;
-    E.bstatus = "The barcode reader couldn't load. Check your connection, or type the number."; E.bkind = "err"; renderSheet();
-  }
-}
-async function onLabelPhoto(file) {
-  const E = state.editor; if (!file || !E || !state.sample) return;
-  const code = E.needLabel;
-  E.bstatus = "Reading the nutrition label…"; E.bkind = "busy"; renderSheet();
-  try {
-    const img = await loadImage(file);
-    const blob = await new Promise(r => scaled(img, 1600).toBlob(r, "image/jpeg", 0.88));
-    const out = await state.sample.json(`Read this food package's nutrition facts label exactly as printed. Copy the numbers from the label; do not estimate them or use outside knowledge.
-Reply with JSON only:
-{"name":"product name if visible on the package, otherwise null","serving_label":"serving size as printed, e.g. 2/3 cup (55g)","serving_grams":55,"protein":10,"carbs":20,"fat":5,"per100":{"protein":null,"carbs":null,"fat":null},"readable":true}
-protein, carbs and fat are grams per serving; use Total Carbohydrate, not net carbs. If the label also has a per 100 g column, fill per100, otherwise leave nulls. If the serving size is only in ml, give the ml as serving_grams. If the label can't be read, set readable to false.`, { images: [blob], modelTier: "default" });
-    if (state.editor !== E) return;
-    if (!out || out.readable === false) { E.bstatus = "The label couldn't be read. Take a sharper photo, straight on, with the whole panel in frame."; E.bkind = "err"; renderSheet(); return; }
-    const sg = +out.serving_grams, v = out.per100;
-    let p, c, f;
-    if (v && v.protein != null && v.carbs != null && v.fat != null) { p = +v.protein; c = +v.carbs; f = +v.fat; }
-    else if (sg > 0) { p = (+out.protein || 0) * 100 / sg; c = (+out.carbs || 0) * 100 / sg; f = (+out.fat || 0) * 100 / sg; }
-    else { E.bstatus = "The label doesn't give the serving size in grams. Add the food above and type in its numbers."; E.bkind = "err"; renderSheet(); return; }
-    const food = { id: uid(), code: code || null, name: String(out.name || (code ? `Product ${code}` : "Packaged food")).slice(0, 80), p: r1(p), c: r1(c), f: r1(f), sg: sg > 0 ? sg : 100, sl: String(out.serving_label || `${sg} g`).slice(0, 60), src: "label" };
-    saveMyFood(food); E.needLabel = null;
-    E.bstatus = `Label read: ${food.sl} has ${r1(food.p * food.sg / 100)} g protein, ${r1(food.c * food.sg / 100)} g carbs, ${r1(food.f * food.sg / 100)} g fat. Saved${code ? " for the next time you scan it" : ""}. Rename it below if you like.`; E.bkind = "";
-    addFood({ ...food, mine: true }, {});
-  } catch (e) {
-    if (state.editor !== E) return;
-    E.bstatus = ERR[e?.code] || "The label couldn't be read. Try again."; E.bkind = "err"; renderSheet();
-  }
-}
-$("#barIn").addEventListener("change", e => { const f = e.target.files?.[0]; e.target.value = ""; onBarcodePhoto(f); });
-$("#labelIn").addEventListener("change", e => { const f = e.target.files?.[0]; e.target.value = ""; onLabelPhoto(f); });
-
-["#camIn", "#libIn"].forEach(s => $(s).addEventListener("change", e => { const f = e.target.files?.[0]; e.target.value = ""; pendingQuick = false; onPhoto(f); }));
-
-const ERR = {
-  not_granted: "Estimates are turned off for this page. You can still enter foods yourself.",
-  rate_limited: "Too many estimates in a short time. Wait a minute and try again.",
-  image_rejected: "That photo couldn't be sent. Try a JPEG or PNG.",
-  images_unavailable: "Photo estimates aren't available here. Describe the meal instead.",
-  cancelled: "Estimate cancelled.",
-};
-async function estimate() {
-  const E = state.editor; if (!E || !state.sample) return;
-  const usePhoto = !!(E.photo && E.aiBlob && state.sampleImages);
-  E.status = usePhoto ? "Estimating portions and macros from your photo…" : "Estimating macros from your description…"; E.statusKind = "busy"; renderSheet();
-  const prompt = `You are a careful sports nutritionist estimating a meal for someone tracking macros to lose fat while gaining muscle. ${usePhoto ? "The attached image is a photo of the meal." : "There is no photo; use the description."}
-${E.notes.trim() ? `The person's own notes (treat stated weights and amounts as exact and use them over what you see): """${E.notes.trim().slice(0, 600)}"""` : "The person gave no notes."}
-Instructions:
-- List each distinct food separately. Include cooking oil, butter, sauces, dressings and drinks you can see or that are very likely used, as their own items.
-- Estimate the edible weight in grams of each item as served (cooked weight for cooked foods). Judge size from the plate (a dinner plate is about 26 cm across), utensils, hands and packaging.
-- Use USDA FoodData Central values for protein, carbohydrate and fat in grams for that weight.
-- When unsure about a portion, pick the most likely amount rather than the smallest.
-Reply with JSON only, in this shape:
-{"items":[{"name":"Grilled chicken breast","grams":170,"protein":52.7,"carbs":0,"fat":6.1}],"confidence":"low|medium|high","note":"one short sentence on what was hardest to judge"}`;
-  try {
-    const out = await state.sample.json(prompt, usePhoto ? { images: [E.aiBlob], modelTier: "default" } : { modelTier: "default" });
-    if (state.editor !== E) return;
-    const items = Array.isArray(out?.items) ? out.items : [];
-    const clean = items.map(i => ({ name: String(i.name || "Food").slice(0, 80), g: Math.max(0, +i.grams || 0), p: Math.max(0, +i.protein || 0), c: Math.max(0, +i.carbs || 0), f: Math.max(0, +i.fat || 0), hint: `Estimated${usePhoto ? " from photo" : ""}. Weigh it or adjust grams if you know better.` })).filter(i => i.p + i.c + i.f > 0 || i.g > 0);
-    if (!clean.length) { E.status = "No food was recognized. Add details or search the food list."; E.statusKind = "err"; renderSheet(); return; }
-    E.items = clean;
-    const conf = ["low", "medium", "high"].includes(out.confidence) ? out.confidence : "medium";
-    E.status = `Estimate ready (${conf} confidence). ${out.note ? String(out.note).slice(0, 200) + " " : ""}Check the grams before saving; photo estimates are usually within 20%.`;
-    E.statusKind = "";
-  } catch (e) {
-    if (state.editor !== E) return;
-    E.status = ERR[e?.code] || "The estimate didn't come back. Try again, or enter foods yourself."; E.statusKind = "err";
-    if (e?.code === "not_granted") state.sample = null;
-  }
-  renderSheet();
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = v => Math.max(0, Math.min(255, v + amt));
+  return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`;
 }
 
-let toastTimer;
-function toast(t) {
-  document.querySelector(".toast")?.remove();
-  const el = document.createElement("div"); el.className = "toast"; el.setAttribute("role", "status"); el.textContent = t; document.body.appendChild(el);
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2600);
+const TRAIN = [["#2ec4b6", "#6fe3d8", "#1f8f85"], ["#ff6a55", "#ff9c8c", "#c74636"], ["#f2b134", "#ffd27a", "#b9821a"]];
+function drawObstacle(o) {
+  const z = o.wz - world.dist, x = o.lane * LANE;
+  if (o.t === "block") {
+    const [f, t, s] = TRAIN[o.c];
+    box(x - 1.05, x + 1.05, 0, 3.1, z, z + o.len, f, t, s, (X, Y, w, h) => {
+      ctx.fillStyle = "#16133a"; ctx.fillRect(X + w * 0.12, Y + h * 0.16, w * 0.32, h * 0.26); ctx.fillRect(X + w * 0.56, Y + h * 0.16, w * 0.32, h * 0.26);
+      ctx.fillStyle = "#fff6ea"; ctx.fillRect(X + w * 0.1, Y + h * 0.72, w * 0.14, h * 0.08); ctx.fillRect(X + w * 0.76, Y + h * 0.72, w * 0.14, h * 0.08);
+      ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(X, Y + h * 0.88, w, h * 0.12);
+    });
+  } else if (o.t === "barrier") {
+    box(x - 0.95, x - 0.8, 0, 1, z, z + 0.3, "#d9d4f5", "#fff", "#b7b0e0");
+    box(x + 0.8, x + 0.95, 0, 1, z, z + 0.3, "#d9d4f5", "#fff", "#b7b0e0");
+    box(x - 0.95, x + 0.95, 0.55, 1.05, z, z + 0.3, "#fff6ea", "#ffffff", "#ddd", (X, Y, w, h) => {
+      ctx.fillStyle = "#ff6a55"; for (let i = 0; i < 4; i++) ctx.fillRect(X + w * (0.06 + i * 0.25), Y, w * 0.12, h);
+    });
+  } else if (o.t === "gate") {
+    box(x - 1, x - 0.82, 0, 2.5, z, z + 0.3, "#6d64b8", "#8c84d6", "#554d9c");
+    box(x + 0.82, x + 1, 0, 2.5, z, z + 0.3, "#6d64b8", "#8c84d6", "#554d9c");
+    box(x - 1, x + 1, 1.45, 2.45, z, z + 0.3, "#16133a", "#2a2463", "#16133a", (X, Y, w, h) => {
+      ctx.fillStyle = "#ffc93c"; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(X + w * i / 5, Y + h); ctx.lineTo(X + w * (i + 0.5) / 5, Y); ctx.lineTo(X + w * (i + 0.85) / 5, Y); ctx.lineTo(X + w * (i + 0.35) / 5, Y + h); ctx.fill(); }
+    });
+  }
 }
-document.addEventListener("keydown", e => { if (e.key === "Escape" && state.editor) closeEditor(); });
+function drawCoin(c, t) {
+  const z = c.wz - world.dist; if (z < NEAR || z > FAR) return;
+  const [sx, sy, s] = P(c.lane * LANE, c.y, z), r = 0.34 * s, w = Math.max(0.15, Math.abs(Math.cos(t * 4 + c.wz))) * r;
+  ctx.fillStyle = "#d99a10"; ctx.beginPath(); ctx.ellipse(sx, sy, w, r, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#ffc93c"; ctx.beginPath(); ctx.ellipse(sx, sy, w * 0.78, r * 0.78, 0, 0, Math.PI * 2); ctx.fill();
+}
+function drawPerson(x, y, z, face, pal, phase, state, scale = 1) {
+  if (z < NEAR + 0.3) return;
+  const [sx, sy0, s] = P(x, y, z), u = s * scale, ground = P(x, 0, z)[1];
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(sx, ground, 0.55 * u, 0.14 * u, 0, 0, Math.PI * 2); ctx.fill();
+  const sy = sy0;
+  const head = (cx, cy, r) => {
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+    if (face.complete && face.naturalWidth) ctx.drawImage(face, cx - r, cy - r, r * 2, r * 2); else { ctx.fillStyle = "#ffcf9e"; ctx.fill(); }
+    ctx.restore();
+    ctx.lineWidth = Math.max(2, r * 0.12); ctx.strokeStyle = pal.ring; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  };
+  if (state === "slide") {
+    ctx.fillStyle = pal.body; ctx.beginPath(); ctx.ellipse(sx, sy - 0.32 * u, 0.62 * u, 0.3 * u, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(sx - 0.9 * u, sy - (0.15 + i * 0.18) * u); ctx.lineTo(sx - 1.3 * u, sy - (0.15 + i * 0.18) * u); ctx.stroke(); }
+    head(sx + 0.15 * u, sy - 0.62 * u, 0.36 * u);
+    return;
+  }
+  const air = state === "air", sw = air ? 0.5 : Math.sin(phase);
+  const limb = (px, py, len, ang, w, col) => { ctx.save(); ctx.translate(px, py); ctx.rotate(ang); ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(-w / 2, 0, w, len, w / 2); ctx.fill(); ctx.restore(); };
+  const hipY = sy - 0.8 * u, shY = hipY - 0.72 * u;
+  limb(sx - 0.14 * u, hipY, 0.8 * u, air ? 0.7 : sw * 0.6, 0.24 * u, pal.legs);
+  limb(sx + 0.14 * u, hipY, 0.8 * u, air ? -0.3 : -sw * 0.6, 0.24 * u, pal.legs);
+  ctx.fillStyle = pal.body; ctx.beginPath(); ctx.roundRect(sx - 0.34 * u, shY, 0.68 * u, 0.8 * u, 0.16 * u); ctx.fill();
+  ctx.fillStyle = pal.trim; ctx.fillRect(sx - 0.34 * u, shY + 0.5 * u, 0.68 * u, 0.1 * u);
+  limb(sx - 0.38 * u, shY + 0.08 * u, 0.62 * u, air ? 2.4 : -sw * 0.8, 0.18 * u, pal.body);
+  limb(sx + 0.38 * u, shY + 0.08 * u, 0.62 * u, air ? -2.4 : sw * 0.8, 0.18 * u, pal.body);
+  head(sx, shY - 0.4 * u, 0.44 * u);
+}
+const RUNNER = { body: "#2ec4b6", trim: "#fff6ea", legs: "#1d2a5c", ring: "#fff6ea" };
+const CHASER = { body: "#ff6a55", trim: "#16133a", legs: "#2a1f3e", ring: "#16133a" };
 
-init();
+/* ---------- game state ---------- */
+const world = { dist: 0, speed: 15, t: 0, coins: 0 };
+let obstacles = [], coins = [], nextRow = 0, laneBusy = [0, 0, 0];
+const player = { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0 };
+const chaser = { z: -12, x: 0, timer: 0 };
+let running = false, paused = false, over = false, overTimer = 0, last = 0;
+let best = +(store.get("best") || 0);
+
+function reset() {
+  Object.assign(world, { dist: 0, speed: 15, t: 0, coins: 0 });
+  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0 });
+  Object.assign(chaser, { z: -1.5, x: 1, timer: 2.6 });
+  obstacles = []; coins = []; nextRow = 34; laneBusy = [0, 0, 0]; camX = 0;
+  over = false; overTimer = 0;
+}
+function spawnRow(wz) {
+  const easy = wz < 160;
+  let blocked = laneBusy.filter(b => b > wz - 2).length;
+  const order = [-1, 0, 1].sort(() => Math.random() - 0.5);
+  for (const lane of order) {
+    const li = lane + 1;
+    if (laneBusy[li] > wz - 2) continue;
+    const r = Math.random();
+    if (r < (easy ? 0.16 : 0.3) && blocked < 2) {
+      const len = 8 + Math.random() * 10;
+      obstacles.push({ t: "block", lane, wz, len, c: Math.floor(Math.random() * TRAIN.length) });
+      laneBusy[li] = wz + len; blocked++;
+      if (Math.random() < 0.35) for (let i = 0; i < 4; i++) coins.push({ lane, wz: wz - 6 + i * 1.5, y: 1 });
+    } else if (r < (easy ? 0.32 : 0.47)) {
+      obstacles.push({ t: "barrier", lane, wz, len: 0.3 });
+      if (Math.random() < 0.5) for (let i = -2; i <= 2; i++) coins.push({ lane, wz: wz + 0.15 + i * 1.2, y: 2.05 - Math.abs(i) * 0.35 });
+    } else if (r < (easy ? 0.42 : 0.6)) {
+      obstacles.push({ t: "gate", lane, wz, len: 0.3 });
+    } else if (r < 0.86) {
+      const n = 5 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < n; i++) coins.push({ lane, wz: wz + i * 1.6, y: 0.9 });
+    }
+  }
+}
+
+function update(dt) {
+  world.t += dt;
+  if (over) {
+    overTimer += dt;
+    chaser.z += (-0.7 - chaser.z) * Math.min(1, dt * 6);
+    chaser.x += (player.x + 0.5 - chaser.x) * Math.min(1, dt * 6);
+    if (overTimer > 0.9 && $("#overScreen").hidden) showOver();
+    return;
+  }
+  world.speed = Math.min(34, world.speed + dt * 0.22);
+  world.dist += world.speed * dt;
+  while (nextRow < world.dist + FAR) { spawnRow(nextRow); nextRow += 11 + Math.random() * 7 + world.speed * 0.18; }
+  // player
+  const tx = player.lane * LANE;
+  const dx = tx - player.x, mv = 15 * dt;
+  player.x = Math.abs(dx) < mv ? tx : player.x + Math.sign(dx) * mv;
+  player.vy -= (player.slide > 0 ? 90 : 42) * dt;
+  player.y = Math.max(0, player.y + player.vy * dt); if (player.y === 0) player.vy = 0;
+  player.slide = Math.max(0, player.slide - dt);
+  player.inv = Math.max(0, player.inv - dt);
+  player.phase += dt * world.speed * 0.75;
+  camX += (player.x * 0.55 - camX) * Math.min(1, dt * 8);
+  // chaser
+  chaser.timer = Math.max(0, chaser.timer - dt);
+  const cTarget = chaser.timer > 0 ? -1.5 : -12;
+  chaser.z += (cTarget - chaser.z) * Math.min(1, dt * (chaser.timer > 0 ? 5 : 1.2));
+  const side = player.lane >= 1 ? -1 : 1;
+  chaser.x += (player.x + side * 1.25 - chaser.x) * Math.min(1, dt * 5);
+  // collisions
+  const tall = player.slide > 0 ? 0.9 : 1.9;
+  for (const o of obstacles) {
+    const z0 = o.wz - world.dist, z1 = z0 + o.len;
+    if (z1 < -0.4 || z0 > 0.4) continue;
+    const ox = o.lane * LANE, gap = Math.abs(ox - player.x);
+    if (gap > 1.05 + 0.3) continue;
+    let hit = false;
+    if (o.t === "block") hit = player.y < 3.1;
+    else if (o.t === "barrier") hit = player.y < 1.0;
+    else if (o.t === "gate") hit = !(player.slide > 0) && player.y + tall > 1.45 && player.y < 2.45;
+    if (!hit) continue;
+    const headOn = gap < 0.7 && (o.t !== "block" || z0 > -0.3);
+    if (headOn) return crash();
+    if (player.inv <= 0) stumble();
+  }
+  for (let i = coins.length - 1; i >= 0; i--) {
+    const c = coins[i], z = c.wz - world.dist;
+    if (z < -2) { coins.splice(i, 1); continue; }
+    if (Math.abs(z) < 0.7 && Math.abs(c.lane * LANE - player.x) < 0.8 && Math.abs(c.y - (player.y + 0.9)) < 1.15) { coins.splice(i, 1); world.coins++; sfx.coin(); }
+  }
+  obstacles = obstacles.filter(o => o.wz + o.len - world.dist > CAMZ);
+  $("#score").textContent = score().toLocaleString();
+  $("#coinCount").textContent = world.coins;
+}
+const score = () => Math.floor(world.dist / 2) + world.coins * 5;
+function stumble() {
+  player.inv = 0.7;
+  if (chaser.timer > 0) return crash();
+  player.lane = player.prevLane; chaser.timer = 7; sfx.bump();
+  note($("#chaserName").value.trim() ? `${$("#chaserName").value.trim()} is right behind you!` : "The chaser is right behind you!");
+}
+function crash() { over = true; overTimer = 0; player.slide = 0; sfx.crash(); }
+
+function drawFrame() {
+  if (!W) return;
+  drawWorld();
+  const items = [];
+  for (const o of obstacles) items.push([o.wz - world.dist, () => drawObstacle(o)]);
+  for (const c of coins) items.push([c.wz - world.dist, () => drawCoin(c, world.t)]);
+  const pState = player.slide > 0 ? "slide" : player.y > 0.05 ? "air" : "run";
+  items.push([0.01, () => drawPerson(player.x, player.y, 0, faces.runner, RUNNER, player.phase, over ? "run" : pState)]);
+  items.push([chaser.z, () => drawPerson(chaser.x, 0, chaser.z, faces.chaser, CHASER, player.phase * 1.05, "run", 1)]);
+  items.sort((a, b) => b[0] - a[0]);
+  for (const [z, fn] of items) { ctx.globalAlpha = Math.max(0, Math.min(1, (FAR - z) / 30)); fn(); }
+  ctx.globalAlpha = 1;
+}
+function loop(ts) {
+  if (!running) return;
+  const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+  if (!paused) update(dt);
+  drawFrame();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- input ---------- */
+function act(dir) {
+  if (!running || paused || over) return;
+  if (dir === "left" || dir === "right") {
+    const nl = player.lane + (dir === "left" ? -1 : 1);
+    if (nl < -1 || nl > 1) return;
+    player.prevLane = player.lane; player.lane = nl; sfx.lane();
+  } else if (dir === "up") {
+    if (player.y < 0.05) { player.vy = 13.2; player.slide = 0; sfx.jump(); }
+  } else if (dir === "down") {
+    player.slide = 0.7; if (player.y > 0) player.vy = -16; sfx.slide();
+  }
+}
+let touch = null;
+cv.addEventListener("touchstart", e => { const t = e.changedTouches[0]; touch = { x: t.clientX, y: t.clientY, done: false }; e.preventDefault(); }, { passive: false });
+cv.addEventListener("touchmove", e => {
+  e.preventDefault(); if (!touch || touch.done) return;
+  const t = e.changedTouches[0], dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) > 22) { touch.done = true; act(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down")); }
+}, { passive: false });
+cv.addEventListener("touchend", e => { e.preventDefault(); touch = null; }, { passive: false });
+let mouse = null;
+cv.addEventListener("mousedown", e => mouse = { x: e.clientX, y: e.clientY });
+cv.addEventListener("mouseup", e => {
+  if (!mouse) return; const dx = e.clientX - mouse.x, dy = e.clientY - mouse.y; mouse = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) > 22) act(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down"));
+});
+window.addEventListener("keydown", e => {
+  const k = { ArrowLeft: "left", a: "left", ArrowRight: "right", d: "right", ArrowUp: "up", w: "up", " ": "up", ArrowDown: "down", s: "down" }[e.key];
+  if (k && running) { e.preventDefault(); act(k); }
+  if (e.key === "Escape" && running && !over) setPaused(!paused);
+});
+
+/* ---------- screens ---------- */
+function start() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
+  actx?.resume?.();
+  reset();
+  ["#startScreen", "#overScreen", "#pauseScreen"].forEach(s => $(s).hidden = true);
+  $("#hud").hidden = false; $("#bestHud").textContent = best ? `Best ${best.toLocaleString()}` : "";
+  paused = false;
+  if (!running) { running = true; last = performance.now(); requestAnimationFrame(loop); }
+  note($("#runnerName").value.trim() ? `Run, ${$("#runnerName").value.trim()}!` : "Run!");
+}
+function showOver() {
+  const s = score(), isBest = s > best;
+  if (isBest) { best = s; store.set("best", String(best)); }
+  $("#overImg").src = faces.chaser.src;
+  const cn = $("#chaserName").value.trim(); $("#overTitle").textContent = cn ? `Caught by ${cn}!` : "Caught!";
+  $("#score").textContent = s.toLocaleString();
+  $("#oScore").textContent = s.toLocaleString(); $("#oCoins").textContent = world.coins; $("#oBest").textContent = best.toLocaleString();
+  $("#newBest").hidden = !isBest;
+  $("#overScreen").hidden = false;
+}
+function setPaused(p) { paused = p; $("#pauseScreen").hidden = !p; if (!p) last = performance.now(); }
+function toMenu() { running = false; $("#hud").hidden = true; ["#overScreen", "#pauseScreen"].forEach(s => $(s).hidden = true); $("#startScreen").hidden = false; reset(); drawFrame(); }
+$("#playBtn").onclick = start;
+$("#againBtn").onclick = start;
+$("#facesBtn").onclick = toMenu;
+$("#pauseBtn").onclick = () => { if (running && !over) setPaused(true); };
+$("#resumeBtn").onclick = () => setPaused(false);
+$("#quitBtn").onclick = toMenu;
+document.addEventListener("visibilitychange", () => { if (document.hidden && running && !over) setPaused(true); });
+
+reset(); resize();
+faces.runner.onload = faces.chaser.onload = () => { if (!running) drawFrame(); };
 })();
 </script>
 
