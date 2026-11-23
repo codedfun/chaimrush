@@ -398,12 +398,13 @@ function noise(dur, vol = 0.12, freq = 900) {
 /* ---------- music: 128 bpm, A minor, four-bar loop; an extra lead layer joins during the jetpack ---------- */
 let musicOn = store.get("music") !== "0";
 const music = { gain: null, comp: null, delay: null, timer: null, step: 0, next: 0, noise: null, playing: false, hype: 0 };
-const BPM = 96, STEP = 60 / BPM / 4;
+const BPM = 90, STEP = 60 / BPM / 4;
 const hz = m => 440 * Math.pow(2, (m - 69) / 12);
-// eight bars in D minor, two bars per chord: Dm, Bb, Gm, A
-const CHORDS = [[50, 53, 57], [50, 53, 57], [46, 50, 53], [46, 50, 53], [43, 46, 50], [43, 46, 50], [45, 49, 52], [45, 49, 52]];
-// the main theme, one note per beat (0 = rest)
-const THEME = [62, 0, 0, 69, 0, 0, 65, 64, 62, 0, 0, 65, 0, 67, 65, 0, 67, 0, 0, 70, 0, 69, 67, 65, 64, 0, 0, 61, 0, 64, 0, 0];
+// eight bars over a low D pedal, slow ominous chord shifts: Dm, Bb, Gm, Eb, A (roots, MIDI)
+const ROOTS = [38, 38, 34, 34, 31, 31, 39, 33];
+const TRIADS = [[50, 53, 57], [50, 53, 57], [46, 50, 53], [46, 50, 53], [43, 46, 50], [43, 46, 50], [51, 55, 58], [45, 49, 52]];
+// sparse brass line: one long held note every two bars (0 = silence)
+const HOLD = [62, 0, 65, 0, 67, 0, 63, 61];
 function musicInit() {
   if (music.gain || !actx) return;
   music.comp = actx.createDynamicsCompressor(); music.comp.threshold.value = -16; music.comp.ratio.value = 4;
@@ -431,23 +432,34 @@ function hit(t, dur, vol, type, freq) {
   src.connect(f).connect(v).connect(music.comp); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
 }
 function scheduleStep(i, t) {
-  const bar = Math.floor(i / 16) % 8, s16 = i % 16, ch = CHORDS[bar], root = ch[0] - 12, hype = music.hype > 0.5;
-  // drone: a low saw and sub at every chord change
-  if (s16 === 0 && bar % 2 === 0) { tone(t, hz(root - 12), STEP * 32, "sawtooth", 0.16, { cut: 260, attack: 0.4 }); tone(t, hz(root - 12), STEP * 32, "sine", 0.3, { cut: 200, attack: 0.2 }); }
-  // war drums: boom . . . . . boom . boom, with a roll into every fourth bar
-  if (s16 === 0 || s16 === 6 || s16 === 8 || (hype && s16 === 12)) { tone(t, 95, 0.6, "sine", 0.95, { glide: 46, cut: 600 }); hit(t, 0.25, 0.35, "lowpass", 300); }
-  if (bar % 4 === 3 && s16 >= 12) { tone(t, 140 - (s16 - 12) * 12, 0.25, "sine", 0.55, { glide: 70, cut: 500 }); }
-  if (s16 === 4 || s16 === 12) hit(t, 0.4, 0.22, "bandpass", 900);                                  // deep clap
-  if (s16 % 4 === 2) hit(t, 0.04, 0.08, "highpass", 9000);                                          // ticking clock
-  // low strings: tense staccato ostinato (16ths during the jetpack)
-  const ost = [root, root, root + 7, root, root + 12, root, root + 7, root + 5][(s16 >> 1) % 8];
-  if (s16 % 2 === 0 || hype) tone(t, hz(ost), STEP * (hype ? 0.8 : 1.4), "sawtooth", hype ? 0.12 : 0.15, { cut: 700 + music.hype * 600 });
-  // choir pad at each chord change
-  if (s16 === 0 && bar % 2 === 0) ch.forEach(m => { tone(t, hz(m + 12), STEP * 31, "triangle", 0.045, { cut: 1400, attack: 0.9 }); tone(t, hz(m + 12) * 1.004, STEP * 31, "sine", 0.04, { cut: 1200, attack: 1.1 }); });
-  // brass swells on the second bar of each chord
-  if (s16 === 0 && bar % 2 === 1) ch.forEach(m => tone(t, hz(m), STEP * 14, "sawtooth", 0.05, { cut: 1300, attack: 0.45, send: 0.2 }));
-  // theme: brassy lead on the beat; doubled an octave up during the jetpack
-  if (s16 % 4 === 0) { const n = THEME[(bar * 4 + s16 / 4) % 32]; if (n) { tone(t, hz(n), STEP * 7, "sawtooth", 0.07, { cut: 1800, attack: 0.06, send: 0.4 }); tone(t, hz(n - 12), STEP * 7, "square", 0.03, { cut: 900, attack: 0.06 }); if (hype) tone(t, hz(n + 12), STEP * 5, "sawtooth", 0.05, { cut: 3200, send: 0.6 }); } }
+  const bar = Math.floor(i / 16) % 8, s16 = i % 16, root = ROOTS[bar], tri = TRIADS[bar], hype = music.hype > 0.5;
+  // relentless low string ostinato on the pedal, accents grouped 3+3+3+3+4
+  const accent = [0, 3, 6, 9, 12].includes(s16);
+  const ostNote = 38 + (s16 === 14 ? 12 : 0) + (bar === 6 && s16 >= 8 ? 1 : 0);
+  tone(t, hz(ostNote), STEP * 0.75, "sawtooth", accent ? 0.2 : 0.11, { cut: accent ? 900 : 550 });
+  if (accent) tone(t, hz(ostNote - 12), STEP * 0.9, "sawtooth", 0.12, { cut: 300 });
+  if (hype) tone(t, hz(ostNote + 12), STEP * 0.6, "sawtooth", accent ? 0.1 : 0.06, { cut: 1600 });
+  // braam: a massive low brass cluster with a sub drop, every four bars, and a lighter one halfway
+  if (s16 === 0 && bar % 4 === 0) {
+    [root - 12, root - 12 + 7, root, root + 3].forEach((m, k) => { tone(t, hz(m), 3.4, "sawtooth", 0.14, { cut: 520, attack: 0.04 }); tone(t, hz(m) * 1.012, 3.4, "sawtooth", 0.09, { cut: 380, attack: 0.06 }); });
+    tone(t, 90, 2.4, "sine", 0.7, { glide: 28, cut: 300, attack: 0.01 });
+    hit(t, 1.4, 0.35, "lowpass", 180);
+  } else if (s16 === 0 && bar % 2 === 0) {
+    [root - 12, root].forEach(m => tone(t, hz(m), 1.8, "sawtooth", 0.09, { cut: 420, attack: 0.08 }));
+  }
+  // drone: cello-like root and fifth under each chord
+  if (s16 === 0 && bar % 2 === 0) { tone(t, hz(root), STEP * 31, "sawtooth", 0.07, { cut: 480, attack: 0.6 }); tone(t, hz(root + 7), STEP * 31, "triangle", 0.06, { cut: 700, attack: 0.9 }); }
+  // dark pad: the chord, low and slow
+  if (s16 === 0 && bar % 2 === 0) tri.forEach(m => tone(t, hz(m), STEP * 30, "triangle", 0.035, { cut: 1000, attack: 1.2 }));
+  // drums: heavy hits on 1 and the "and" of 3, a big echoing crack on 3
+  if (s16 === 0 || s16 === 10 || (hype && (s16 === 4 || s16 === 14))) { tone(t, 72, 0.7, "sine", 1.0, { glide: 36, cut: 400 }); hit(t, 0.35, 0.4, "lowpass", 220); }
+  if (s16 === 8) { hit(t, 0.9, 0.3, "bandpass", 650); tone(t, 160, 0.3, "triangle", 0.2, { glide: 90, cut: 700, send: 0.4 }); }
+  if (bar % 4 === 3 && s16 >= 8 && s16 % 2 === 0) tone(t, 110 - (s16 - 8) * 6, 0.35, "sine", 0.6, { glide: 50, cut: 500 }); // drum roll into the braam
+  if (s16 % 2 === 1) hit(t, 0.03, hype ? 0.08 : 0.05, "highpass", 10000);                     // ticking
+  // rising tension in the last bar of the loop
+  if (bar === 7 && s16 === 0) { tone(t, hz(50), STEP * 16, "sawtooth", 0.05, { glide: hz(62), cut: 2400, attack: 1.4, send: 0.3 }); tone(t, hz(57), STEP * 16, "sawtooth", 0.04, { glide: hz(69), cut: 2400, attack: 1.4 }); }
+  // sparse brass: long held notes, doubled an octave down
+  if (s16 === 0 && HOLD[bar]) { const n = HOLD[bar]; tone(t, hz(n), STEP * 26, "sawtooth", 0.06, { cut: 1300, attack: 0.5, send: 0.35 }); tone(t, hz(n - 12), STEP * 26, "sawtooth", 0.05, { cut: 700, attack: 0.5 }); if (hype) tone(t, hz(n + 12), STEP * 20, "sawtooth", 0.035, { cut: 2600, attack: 0.4, send: 0.5 }); }
 }
 function musicTick() {
   while (music.next < actx.currentTime + 0.12) { scheduleStep(music.step, music.next); music.next += STEP; music.step++; }

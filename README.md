@@ -23,7 +23,7 @@ Every 1,000 coins you collect, added up across all your runs, earns a key. Keys 
 - **Coin magnet (found on the tracks now and then):** for 30 seconds, nearby coins in every lane, including ones above or below you, fly to you on their own. A small magnet floats beside the runner while it lasts.
 - **Jump boots (found on the tracks now and then):** 30 seconds of extra-high jumps, high enough to clear a train. The runner wears big green spring boots while they last, and any coins you jump over are still collected. They flicker in the last 3 seconds.
 
-The game has an original dark, cinematic soundtrack generated in the browser (drones, war drums, low strings, brass and choir), which intensifies during the jetpack. Use the music button to turn it off, or the speaker button to mute everything.
+The game has an original dark, cinematic soundtrack generated in the browser (a driving low string ostinato, heavy brass hits with sub drops, drums, drones and rising tension), which intensifies during the jetpack. Use the music button to turn it off, or the speaker button to mute everything.
 
 On a computer, use the arrow keys (or WASD) to move, F or Enter to throw, and Escape to pause.
 
