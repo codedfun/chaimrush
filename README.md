@@ -37,11 +37,9 @@ Tap **Add photo** on the start screen, then drag and zoom to fit the face in the
 
 ## More games
 
-The **More games** button at the bottom of the start screen opens `games/`, a page of extra games under the Chaim Rush name. Best scores are saved on the phone.
+The **More games** button at the bottom of the start screen opens `games/`, a page of extra games under the Chaim Rush name.
 
-- **Sky Stack** (`games/stack.html`): tap to drop each sliding block; overhangs get sliced off. Three perfect drops in a row make the block grow back.
-- **Coin Storm** (`games/coins.html`): drag the basket to catch coins (+1) and gems (+5) and dodge bombs. Three lives, and it speeds up.
-- **Pair Up** (`games/pairs.html`): flip tiles to match all 8 pairs in as few moves as possible.
+- **Chaim Quest** (`games/quest.html`): an original side-scrolling platformer across city rooftops. Put your own face on the hero (or reuse your Chaim Rush runner face), stomp slimes, avoid spiky rollers and spikes, bump star crates for coins, ride moving platforms and reach the glowing door. Three levels; finishing one unlocks the next. On a phone, use the left/right buttons and the jump button (hold for a higher jump).
 
 ## Add it to your Home Screen
 
