@@ -9,7 +9,12 @@ A 3D endless runner for phones. Put a face on the runner and a face on the chase
 - **Swipe down** to slide under gates.
 - **Tap the screen** (or the boomerang button) to throw your boomerang down your lane. It destroys the first train, barrier or gate it hits, picks up coins on the way, and flies back to your hand. It can be thrown once every 10 seconds; the button shows the countdown.
 - **Ramps** lead up onto some trains. Run up them to travel along the train roofs and grab the coins up there.
+- Only running into an obstacle counts. If your feet just clip the top of a barricade or train, you land on it and keep going.
 - Bump into something once and the chaser closes in; bump again before they fall back and you're caught. Running straight into a train ends the run.
+
+## Keys
+
+Every 1,000 coins you collect, added up across all your runs, earns a key. Keys are saved on that phone. When you're caught and have a key, you get 6 seconds to use one and keep running from where you were, with a few seconds of protection.
 
 ## Power-ups
 
@@ -18,7 +23,7 @@ A 3D endless runner for phones. Put a face on the runner and a face on the chase
 - **Coin magnet (found on the tracks now and then):** for 30 seconds, nearby coins in every lane, including ones above or below you, fly to you on their own. A small magnet floats beside the runner while it lasts.
 - **Jump boots (found on the tracks now and then):** 30 seconds of extra-high jumps, high enough to clear a train. The runner wears big green spring boots while they last, and any coins you jump over are still collected. They flicker in the last 3 seconds.
 
-The game has an original electronic soundtrack generated in the browser, which picks up an extra lead line during the jetpack. Use the music button to turn it off, or the speaker button to mute everything.
+The game has an original dark, cinematic soundtrack generated in the browser (drones, war drums, low strings, brass and choir), which intensifies during the jetpack. Use the music button to turn it off, or the speaker button to mute everything.
 
 On a computer, use the arrow keys (or WASD) to move, F or Enter to throw, and Escape to pause.
 
