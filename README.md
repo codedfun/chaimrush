@@ -39,7 +39,7 @@ Tap **Add photo** on the start screen, then drag and zoom to fit the face in the
 
 The **More games** button at the bottom of the start screen opens `games/`, a page of extra games under the Chaim Rush name.
 
-- **Chaim Quest** (`games/quest.html`): an original side-scrolling platformer across city rooftops. Put your own face on the hero (or reuse your Chaim Rush runner face), stomp slimes, avoid spiky rollers and spikes, bump star crates for coins, ride moving platforms and reach the glowing door. Three levels; finishing one unlocks the next. On a phone, use the left/right buttons and the jump button (hold for a higher jump).
+- **Chaim Quest** (`games/quest.html`): an original side-scrolling platformer across city rooftops. Put your own face on the hero (or reuse your Chaim Rush runner face), stomp slimes, avoid spiky rollers and spikes, bump star crates for coins, ride moving platforms and reach the glowing door. You start each level small: some star crates hold a **Power Gem** that makes you big, or a **Spark Orb** (if you're already big) that lets you throw bouncing sparks with the bolt button; a rare crate holds a **heart** (extra life). When a monster or spikes hit you, you lose your sparks first, then shrink, and only lose a life if you're hit while small. Big heroes can smash red bricks from below. Three levels; finishing one unlocks the next. On a phone, use the left/right buttons and the jump button (hold for a higher jump).
 
 ## Add it to your Home Screen
 
