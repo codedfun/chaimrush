@@ -50,7 +50,8 @@ button{cursor:pointer}
 .pill small{font-family:var(--body);font-size:12px;color:var(--muted)}
 .pill.pow{font-size:14px;padding:6px 12px}
 .pill.pow b{font-weight:400;font-size:18px;min-width:1.4em;text-align:right}
-.pill.jet{background:rgb(255 106 85/.55)} .pill.boots{background:rgb(60 255 138/.35)} .pill.mag{background:rgb(229 53 43/.45)}
+.pill.jet{background:rgb(255 106 85/.55)} .pill.boots{background:rgb(60 255 138/.35)} .pill.mag{background:rgb(229 53 43/.45)} .pill.ride{background:rgb(56 240 255/.32)}
+button.pill{border:0;color:inherit;pointer-events:auto;cursor:pointer}
 .pill.keyp svg{width:20px;height:20px}
 .pill.has{box-shadow:0 0 0 2px rgb(56 240 255/.55),0 0 18px rgb(56 240 255/.35)}
 .hbtn{pointer-events:auto;width:40px;height:40px;border-radius:12px;border:0;background:rgb(10 8 30/.45);display:grid;place-items:center}
@@ -141,9 +142,10 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
   <div class="left"><div class="score" id="score">0</div><div class="best" id="bestHud"></div>
     <div class="pill pow jet" id="jetHud" hidden>Jetpack <b id="jetTime">30</b></div>
     <div class="pill pow boots" id="bootHud" hidden>Boots <b id="bootTime">30</b></div>
-    <div class="pill pow mag" id="magHud" hidden>Magnet <b id="magTime">30</b></div></div>
+    <div class="pill pow mag" id="magHud" hidden>Magnet <b id="magTime">30</b></div>
+    <div class="pill pow ride" id="rideHud" hidden>Hoverboard <b id="rideTime">30</b></div></div>
   <div class="right">
-    <div class="pill" id="boardHud" aria-label="Hoverboards"><svg viewBox="0 0 28 16" aria-hidden="true"><ellipse cx="14" cy="13" rx="12" ry="2.5" fill="#38f0ff" opacity=".45"/><rect x="1" y="5" width="26" height="5" rx="2.5" fill="#1b1840" stroke="#38f0ff" stroke-width="1.4"/></svg><span id="boardCount">0</span><small id="boardNext">0/100</small></div>
+    <button class="pill" id="boardHud" aria-label="Ride a hoverboard"><svg viewBox="0 0 28 16" aria-hidden="true"><ellipse cx="14" cy="13" rx="12" ry="2.5" fill="#38f0ff" opacity=".45"/><rect x="1" y="5" width="26" height="5" rx="2.5" fill="#1b1840" stroke="#38f0ff" stroke-width="1.4"/></svg><span id="boardCount">0</span><small id="boardNext">0/100</small></button>
     <div class="pill"><i></i><span id="coinCount">0</span></div>
     <div class="pill keyp" aria-label="Keys"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4.5" fill="none" stroke="#ffc93c" stroke-width="2.6"/><path d="M12.5 12h9M18 12v3.5M21 12v2.5" stroke="#ffc93c" stroke-width="2.6" stroke-linecap="round"/></svg><span id="keyCount">0</span></div>
     <button class="hbtn" id="musicBtn" aria-label="Music off"><svg viewBox="0 0 24 24" fill="none" stroke="#fff6ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path id="musicSlash" d="M3 3l18 18"/></svg></button>
@@ -179,7 +181,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
       <div><b>◎</b>Tap to throw the boomerang</div>
       <div><b>⟋</b>Run up ramps onto trains</div>
       <div><b>⇈</b>Boots and magnets are on the tracks too</div>
-      <div><b>▭</b>100 coins = a hoverboard (extra life)</div>
+      <div><b>▭</b>100 coins = a hoverboard. Double-tap to ride it</div>
       <div><b>▲</b>Grab a jetpack to fly for 18 seconds</div>
     </div>
     <p class="err" id="loadErr" hidden>The 3D engine couldn't load. Check your connection and reload the page.</p>
@@ -975,7 +977,7 @@ function clearTrack() {
 function reset(forPlay) {
   clearTrack();
   Object.assign(world, { dist: world.dist, speed: forPlay ? 15 : 10, t: 0, coins: 0, boards: 0, bonus: 0, jetProg: 0 });
-  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, inv: 0, shield: 0, throwT: 0, floor: 0, jet: 0, boots: 0, magnet: 0 });
+  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, inv: 0, shield: 0, throwT: 0, floor: 0, jet: 0, boots: 0, magnet: 0, board: 0 });
   Object.assign(chaser, { z: forPlay ? 2.6 : 14, x: 1.2, y: 0, timer: forPlay ? 2.6 : 0 });
   if (B.state !== "held") boomHeld();
   Object.assign(B, { state: "held", cool: 0 }); hudCool = -1;
@@ -1092,6 +1094,7 @@ function update(dt) {
   }
   if (player.boots > 0) { player.boots -= dt; if (player.boots <= 0) { player.boots = 0; note("Jump boots wore off"); } }
   if (player.magnet > 0) { player.magnet -= dt; if (player.magnet <= 0) { player.magnet = 0; note("Magnet wore off"); } }
+  if (player.board > 0 && player.jet <= 0) { player.board -= dt; if (player.board <= 0) { player.board = 0; note("Hoverboard ran out of charge"); hudBoards(); } }
   player.slide = Math.max(0, player.slide - dt);
   player.inv = Math.max(0, player.inv - dt);
   player.shield = Math.max(0, player.shield - dt);
@@ -1173,7 +1176,7 @@ function stumble(o) {
   return false;
 }
 function crash(o) {
-  if (world.boards > 0) return useBoard(o);
+  if (player.board > 0) return useBoard(o);
   savedSpeed = world.speed;
   mode = "over"; overTimer = 0; waitingOver = false; player.slide = 0; player.vy = 6; shake = 0.8; sfx.crash(); musicStop();
   $("#throwBtn").hidden = true;
@@ -1229,9 +1232,10 @@ function hudBoards() {
   $("#coinCount").textContent = world.coins;
 
 }
-let hudJ = -1, hudB = -1, hudM = -1;
+let hudJ = -1, hudB = -1, hudM = -1, hudR = -1;
 function hudPowers() {
-  const j = Math.ceil(player.jet), b = Math.ceil(player.boots), m = Math.ceil(player.magnet);
+  const j = Math.ceil(player.jet), b = Math.ceil(player.boots), m = Math.ceil(player.magnet), rd = Math.ceil(player.board);
+  if (rd !== hudR) { hudR = rd; $("#rideHud").hidden = rd <= 0; $("#rideTime").textContent = rd; }
   if (m !== hudM) { hudM = m; $("#magHud").hidden = m <= 0; $("#magTime").textContent = m; }
   if (j !== hudJ) { hudJ = j; $("#jetHud").hidden = j <= 0; $("#jetTime").textContent = j; }
   if (b !== hudB) { hudB = b; $("#bootHud").hidden = b <= 0; $("#bootTime").textContent = b; }
@@ -1255,19 +1259,29 @@ function endJet() {
 function gainBoard() {
   if (world.boards >= BOARD_MAX) { world.bonus += 50; note("3 hoverboards is the max. +50 points"); sfx.catchIt(); return; }
   world.boards++;
-  note(world.boards === 1 ? "Hoverboard! That's an extra life" : `Hoverboard! You have ${world.boards}`);
+  note(player.board > 0 ? `Hoverboard saved! You have ${world.boards}` : "Hoverboard! Double-tap to ride it");
   sfx.board();
   burst(player.x, 0.4, 0, [0x38f0ff, 0xffffff], 18, 4);
 }
+const BOARD_RIDE = 30;
+function activateBoard() {
+  if (mode !== "play") return;
+  if (player.board > 0) { note("You're already riding a hoverboard"); return; }
+  if (player.jet > 0) { note("Not while you're on the jetpack"); return; }
+  if (world.boards <= 0) { note(`No hoverboards yet. ${BOARD_COST - world.coins % BOARD_COST} more coins for one`); return; }
+  world.boards--; player.board = BOARD_RIDE; hudBoards(); hudPowers();
+  sfx.board(); burst(player.x, 0.4, 0, [0x38f0ff, 0xffffff], 22, 4);
+  note("Riding! The board takes the next crash for you");
+}
 function useBoard(o) {
-  world.boards--; hudBoards();
+  player.board = 0; hudBoards(); hudPowers();
   player.shield = 2.2; player.inv = 2.2; player.slide = 0; player.vy = Math.max(player.vy, 10);
   chaser.timer = 0; shake = 0.6;
   const lane = Math.round(player.x / LANE);
   for (const x of obstacles) if (x === o || (x.lane === lane && x.wz - world.dist < 9 && x.wz + x.len - world.dist > -1)) { smashFx(x); removeObstacle(x); }
   burst(player.x, 0.5, 0, [0x38f0ff, 0x1b1840, 0xffffff], 30, 7);
   sfx.boardBreak();
-  note(world.boards ? `Hoverboard wrecked! ${world.boards} left` : "Hoverboard wrecked! Keep running");
+  note(world.boards ? `Hoverboard wrecked! ${world.boards} saved. Double-tap to ride another` : "Hoverboard wrecked! Keep running");
 }
 function smashFx(o) {
   const z = o.wz - world.dist;
@@ -1351,7 +1365,7 @@ function render(dt) {
   }
   updateParts(dt, mode === "over" ? 0 : 0);
 
-  const riding = world.boards > 0 && mode !== "over" && player.jet <= 0;
+  const riding = player.board > 0 && mode !== "over" && player.jet <= 0;
   const lift = riding ? 0.72 + Math.sin(world.t * 3.1) * 0.12 + Math.sin(world.t * 7.3) * 0.025 : 0;
   runner.root.position.set(player.x, player.y + lift, 0);
   let st = player.slide > 0 ? "slide" : player.y > player.floor + 0.05 ? "air" : "run";
@@ -1469,7 +1483,7 @@ cv.addEventListener("touchend", e => {
   e.preventDefault();
   if (touch && !touch.done) {
     const t = e.changedTouches[0];
-    if (Math.hypot(t.clientX - touch.x, t.clientY - touch.y) < 14 && performance.now() - touch.t < 350) throwBoom();
+    if (Math.hypot(t.clientX - touch.x, t.clientY - touch.y) < 14 && performance.now() - touch.t < 350) onTap(t.clientX, t.clientY);
   }
   touch = null;
 }, { passive: false });
@@ -1478,13 +1492,28 @@ cv.addEventListener("mousedown", e => mouse = { x: e.clientX, y: e.clientY });
 cv.addEventListener("mouseup", e => {
   if (!mouse) return; const dx = e.clientX - mouse.x, dy = e.clientY - mouse.y; mouse = null;
   if (Math.max(Math.abs(dx), Math.abs(dy)) > 22) act(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down"));
-  else throwBoom();
+  else onTap(e.clientX, e.clientY);
 });
+let lastTap = null, tapTimer = null;
+const DOUBLE_TAP_MS = 280;
+function onTap(x, y) {
+  const now = performance.now();
+  if (lastTap && now - lastTap.t < DOUBLE_TAP_MS && Math.hypot(x - lastTap.x, y - lastTap.y) < 60) {
+    clearTimeout(tapTimer); tapTimer = null; lastTap = null;
+    activateBoard();
+    return;
+  }
+  lastTap = { t: now, x, y };
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => { tapTimer = null; lastTap = null; throwBoom(); }, DOUBLE_TAP_MS);
+}
 $("#throwBtn").addEventListener("click", throwBoom);
+$("#boardHud").addEventListener("click", activateBoard);
 window.addEventListener("keydown", e => {
   const k = { ArrowLeft: "left", a: "left", ArrowRight: "right", d: "right", ArrowUp: "up", w: "up", " ": "up", ArrowDown: "down", s: "down" }[e.key];
   if (k && mode === "play") { e.preventDefault(); act(k); }
   if ((e.key === "f" || e.key === "e" || e.key === "Enter") && mode === "play") { e.preventDefault(); throwBoom(); }
+  if ((e.key === "b" || e.key === "h") && mode === "play") { e.preventDefault(); activateBoard(); }
   if (e.key === "Escape" && (mode === "play" || mode === "paused")) setPaused(mode === "play");
 });
 
