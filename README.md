@@ -1,4 +1,4 @@
-# Face Dash
+# Chaim Rush
 
 A 3D endless runner for phones. Put a face on the runner and a face on the chaser, then dodge trains through a city at sunset for as long as you can.
 
@@ -7,9 +7,15 @@ A 3D endless runner for phones. Put a face on the runner and a face on the chase
 - **Swipe left or right** to switch lanes.
 - **Swipe up** to jump over barriers.
 - **Swipe down** to slide under gates.
-- **Tap the screen** (or the boomerang button) to throw your boomerang down your lane. It destroys the first train, barrier or gate it hits, picks up coins on the way, and flies back to your hand. You can throw again once you've caught it.
+- **Tap the screen** (or the boomerang button) to throw your boomerang down your lane. It destroys the first train, barrier or gate it hits, picks up coins on the way, and flies back to your hand.
+- **Ramps** lead up onto some trains. Run up them to travel along the train roofs and grab the coins up there.
 - Bump into something once and the chaser closes in; bump again before they fall back and you're caught. Running straight into a train ends the run.
-- **Hoverboards:** every 26 coins gives you a hoverboard (carry up to 3). A crash while riding wrecks the board instead of ending the run: you hop clear, pass through obstacles for about two seconds, and the chaser drops back. Coins past 3 boards are worth a 50-point bonus each time.
+
+## Power-ups
+
+- **Hoverboard (every 100 coins):** an extra life. A crash while riding wrecks the board instead of ending the run: you hop clear, pass through obstacles for about two seconds, and the chaser drops back. You can carry up to 3.
+- **Jetpack (every 500 coins):** 30 seconds of flight above the trains, through long trails of coins. The chaser gets a jetpack too and flies right up behind you. When the fuel runs out you drop back to the tracks with a few seconds of protection, and the chaser falls back.
+- **Jump boots (found on the tracks now and then):** 30 seconds of extra-high jumps, high enough to clear a train.
 
 On a computer, use the arrow keys (or WASD) to move, F or Enter to throw, and Escape to pause.
 

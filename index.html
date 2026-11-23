@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 </head>
 <body>
-<title>Face Dash</title>
+<title>Chaim Rush</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -35,15 +35,20 @@ button{cursor:pointer}
   padding-top:calc(10px + env(safe-area-inset-top,0px));padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
 .hud .score{font-family:var(--display);font-size:30px;line-height:1;text-shadow:0 2px 6px rgb(0 0 0/.45);font-variant-numeric:tabular-nums}
 .hud .best{font-size:13px;color:var(--muted);margin-top:4px;text-shadow:0 1px 4px rgb(0 0 0/.5)}
+.hud .left{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.hud .left .best{margin-top:0}
 .hud .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .pill{font-family:var(--display);display:flex;align-items:center;gap:6px;background:rgb(10 8 30/.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:999px;padding:5px 12px 5px 7px;font-variant-numeric:tabular-nums;font-size:20px}
 .pill i{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1a8,var(--gold) 55%,#d99a10);display:block}
 .pill svg{width:28px;height:16px;flex:none}
 .pill small{font-family:var(--body);font-size:12px;color:var(--muted)}
+.pill.pow{font-size:14px;padding:6px 12px}
+.pill.pow b{font-weight:400;font-size:18px;min-width:1.4em;text-align:right}
+.pill.jet{background:rgb(255 106 85/.55)} .pill.boots{background:rgb(60 255 138/.35)}
 .pill.has{box-shadow:0 0 0 2px rgb(56 240 255/.55),0 0 18px rgb(56 240 255/.35)}
 .hbtn{pointer-events:auto;width:40px;height:40px;border-radius:12px;border:0;background:rgb(10 8 30/.45);display:grid;place-items:center}
 .hbtn svg{width:20px;height:20px}
-.warn{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));font-family:var(--display);font-size:15px;color:var(--ink);background:rgb(10 8 30/.6);padding:7px 16px;border-radius:999px;pointer-events:none;white-space:nowrap;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis}
+.warn{position:absolute;left:50%;transform:translateX(-50%);top:calc(150px + env(safe-area-inset-top,0px));font-family:var(--display);font-size:15px;color:var(--ink);background:rgb(10 8 30/.6);padding:7px 16px;border-radius:999px;pointer-events:none;white-space:nowrap;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis}
 .throw{position:absolute;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:76px;height:76px;border-radius:50%;border:0;
   background:radial-gradient(circle at 40% 35%,#ff9a6a,#ff6a55 60%,#c84632);box-shadow:0 6px 0 #8f2f22,0 10px 24px rgb(0 0 0/.4);display:grid;place-items:center;touch-action:manipulation}
 .throw svg{width:44px;height:44px}
@@ -70,7 +75,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 .big:active{transform:translateY(3px);box-shadow:0 2px 0 #b8402f}
 .big:disabled{opacity:.6}
 .ghost{border:0;background:transparent;color:var(--muted);font-weight:500;padding:8px;text-decoration:underline;text-underline-offset:3px}
-.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center;font-size:12.5px;color:var(--muted)}
+.how{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center;font-size:11.5px;line-height:1.25;color:var(--muted)}
 .how div{background:var(--panel2);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}
 .how b{font-size:18px;color:var(--ink);line-height:1.1}
 .note{font-size:12.5px;color:var(--muted);margin:0;text-align:center}
@@ -94,12 +99,14 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 @media (prefers-reduced-motion:reduce){.big:active,.throw:active{transform:none}}
 </style>
 
-<canvas id="game" aria-label="Face Dash game"></canvas>
+<canvas id="game" aria-label="Chaim Rush game"></canvas>
 
 <div class="hud" id="hud" hidden>
-  <div><div class="score" id="score">0</div><div class="best" id="bestHud"></div></div>
+  <div class="left"><div class="score" id="score">0</div><div class="best" id="bestHud"></div><div class="best" id="jetNext"></div>
+    <div class="pill pow jet" id="jetHud" hidden>Jetpack <b id="jetTime">30</b></div>
+    <div class="pill pow boots" id="bootHud" hidden>Boots <b id="bootTime">30</b></div></div>
   <div class="right">
-    <div class="pill" id="boardHud" aria-label="Hoverboards"><svg viewBox="0 0 28 16" aria-hidden="true"><ellipse cx="14" cy="13" rx="12" ry="2.5" fill="#38f0ff" opacity=".45"/><rect x="1" y="5" width="26" height="5" rx="2.5" fill="#1b1840" stroke="#38f0ff" stroke-width="1.4"/></svg><span id="boardCount">0</span><small id="boardNext">0/26</small></div>
+    <div class="pill" id="boardHud" aria-label="Hoverboards"><svg viewBox="0 0 28 16" aria-hidden="true"><ellipse cx="14" cy="13" rx="12" ry="2.5" fill="#38f0ff" opacity=".45"/><rect x="1" y="5" width="26" height="5" rx="2.5" fill="#1b1840" stroke="#38f0ff" stroke-width="1.4"/></svg><span id="boardCount">0</span><small id="boardNext">0/100</small></div>
     <div class="pill"><i></i><span id="coinCount">0</span></div>
     <button class="hbtn" id="muteBtn" aria-label="Sound off"><svg viewBox="0 0 24 24" fill="none" stroke="#fff6ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path id="muteWave" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
     <button class="hbtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" fill="#fff6ea"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
@@ -110,7 +117,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 
 <div class="screen" id="startScreen">
   <div class="card">
-    <h1>Face<br><span>Dash</span></h1>
+    <h1>Chaim<br><span>Rush</span></h1>
     <p class="lead">Put a face on the runner and a face on the chaser, then dodge trains for as long as you can.</p>
     <div class="faces">
       <div class="slot runner">
@@ -131,8 +138,10 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
       <div><b>↑</b>Swipe up to jump</div>
       <div><b>↓</b>Swipe down to slide</div>
       <div><b>◎</b>Tap to throw the boomerang</div>
-      <div><b>▭</b>26 coins = a hoverboard</div>
-      <div><b>♥</b>A hoverboard is an extra life</div>
+      <div><b>⟋</b>Run up ramps onto trains</div>
+      <div><b>⇈</b>Jump boots: extra-high jumps</div>
+      <div><b>▭</b>100 coins = a hoverboard (extra life)</div>
+      <div><b>▲</b>500 coins = a 30-second jetpack</div>
     </div>
     <p class="err" id="loadErr" hidden>The 3D engine couldn't load. Check your connection and reload the page.</p>
     <button class="big" id="playBtn">Run!</button>
@@ -472,7 +481,7 @@ const darkGlass = new THREE.MeshStandardMaterial({ color: 0x14122e, metalness: 0
 const chassisMat = new THREE.MeshStandardMaterial({ color: 0x1c1a2a, metalness: 0.6, roughness: 0.6 });
 const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0 });
 const roofGeo = new THREE.CylinderGeometry(1, 1, 1, 20, 1, false, -Math.PI / 2, Math.PI); roofGeo.rotateX(Math.PI / 2);
-const frontGeo = new THREE.PlaneGeometry(2.04, 2.5);
+const frontGeo = new THREE.PlaneGeometry(1.8, 2.5);
 const stripeTex = canvasTex(256, 64, (g, w, h) => {
   g.fillStyle = "#f4efe6"; g.fillRect(0, 0, w, h);
   g.fillStyle = "#e5402e"; for (let x = -h; x < w; x += 46) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 22, 0); g.lineTo(x + 44, 0); g.lineTo(x + 22, h); g.fill(); }
@@ -494,13 +503,13 @@ function addMesh(parent, geo, mat, x = 0, y = 0, z = 0, shadow = true) {
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
 function makeTrain(c, len) {
   const g = new THREE.Group();
-  addMesh(g, boxGeo, chassisMat, 0, 0.32, 0).scale.set(1.8, 0.42, len - 0.5);
-  addMesh(g, boxGeo, trainBodyMats[c], 0, 1.65, 0).scale.set(2.04, 2.5, len);
-  addMesh(g, roofGeo, trainBodyMats[c], 0, 2.9, 0).scale.set(1.0, 0.22, len - 0.2);
-  for (const s of [-1, 1]) addMesh(g, boxGeo, darkGlass, s * 1.025, 2.15, 0, false).scale.set(0.02, 0.62, len - 1.4);
-  for (const s of [-1, 1]) addMesh(g, boxGeo, chassisMat, s * 0.75, 0.25, 0).scale.set(0.3, 0.5, len - 1.2);
-  const f = addMesh(g, frontGeo, trainFrontMats[c], 0, 1.65, len / 2 + 0.012, false);
-  for (const s of [-1, 1]) addMesh(g, boxGeo, lampMat, s * 0.68, 0.85, len / 2 + 0.03, false).scale.set(0.26, 0.14, 0.04);
+  addMesh(g, boxGeo, chassisMat, 0, 0.32, 0).scale.set(1.6, 0.42, len - 0.5);
+  addMesh(g, boxGeo, trainBodyMats[c], 0, 1.65, 0).scale.set(1.8, 2.5, len);
+  addMesh(g, roofGeo, trainBodyMats[c], 0, 2.9, 0).scale.set(0.9, 0.16, len - 0.2);
+  for (const s of [-1, 1]) addMesh(g, boxGeo, darkGlass, s * 0.905, 2.15, 0, false).scale.set(0.02, 0.62, len - 1.4);
+  for (const s of [-1, 1]) addMesh(g, boxGeo, chassisMat, s * 0.65, 0.25, 0).scale.set(0.28, 0.5, len - 1.2);
+  addMesh(g, frontGeo, trainFrontMats[c], 0, 1.65, len / 2 + 0.012, false);
+  for (const s of [-1, 1]) addMesh(g, boxGeo, lampMat, s * 0.6, 0.85, len / 2 + 0.03, false).scale.set(0.24, 0.14, 0.04);
   return g;
 }
 function makeBarrier() {
@@ -517,6 +526,54 @@ function makeGate() {
   const lights = [];
   for (const s of [-1, 1]) lights.push(addMesh(g, new THREE.SphereGeometry(0.09, 10, 8), redLightMat, s * 0.98, 2.68, 0, false));
   g.userData.lights = lights;
+  return g;
+}
+const TOP = 3.05, RAMP_LEN = 7.5;
+const rampTex = canvasTex(128, 512, (g, w, h) => {
+  g.fillStyle = "#6d6a84"; g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 24) { g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(0, y, w, 3); g.fillStyle = "rgba(255,255,255,.08)"; g.fillRect(0, y + 3, w, 2); }
+  g.fillStyle = "#ffc93c"; g.fillRect(0, 0, w * 0.08, h); g.fillRect(w * 0.92, 0, w * 0.08, h);
+});
+const rampMat = new THREE.MeshStandardMaterial({ map: rampTex, metalness: 0.6, roughness: 0.45 });
+function makeRamp() {
+  const g = new THREE.Group(), hyp = Math.hypot(RAMP_LEN, TOP), ang = Math.atan2(TOP, RAMP_LEN);
+  const deck = addMesh(g, boxGeo, rampMat, 0, TOP / 2 - 0.04, 0); deck.scale.set(1.7, 0.1, hyp); deck.rotation.x = ang;
+  for (const s of [-1, 1]) for (const k of [0.25, 0.55, 0.85]) {
+    const h = TOP * k; addMesh(g, boxGeo, postMat, s * 0.75, h / 2, RAMP_LEN / 2 - RAMP_LEN * k).scale.set(0.08, h, 0.08);
+  }
+  return g;
+}
+const powers = [];
+const bootMat = new THREE.MeshStandardMaterial({ color: 0x3cff8a, emissive: 0x18a050, emissiveIntensity: 0.6, roughness: 0.35, metalness: 0.2 });
+const springMat = new THREE.MeshStandardMaterial({ color: 0xd8d8e8, metalness: 0.9, roughness: 0.25 });
+function makeBoots() {
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) {
+    addMesh(g, boxGeo, bootMat, s * 0.2, 0.32, 0.03).scale.set(0.2, 0.34, 0.2);
+    addMesh(g, boxGeo, bootMat, s * 0.2, 0.18, -0.08).scale.set(0.21, 0.16, 0.4);
+    addMesh(g, new THREE.TorusGeometry(0.08, 0.025, 6, 14), springMat, s * 0.2, 0.06, -0.05).rotation.x = Math.PI / 2;
+    addMesh(g, new THREE.TorusGeometry(0.08, 0.025, 6, 14), springMat, s * 0.2, 0.0, -0.05).rotation.x = Math.PI / 2;
+  }
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x3cff8a, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8, depthWrite: false }));
+  halo.scale.set(1.8, 1.8, 1); halo.position.y = 0.3; g.add(halo);
+  return g;
+}
+function makeJetpack() {
+  const g = new THREE.Group();
+  const tankMat = new THREE.MeshStandardMaterial({ color: 0xd9dbe8, metalness: 0.85, roughness: 0.25 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xff6a55, metalness: 0.3, roughness: 0.4 });
+  addMesh(g, boxGeo, capMat, 0, 0.02, -0.02).scale.set(0.3, 0.32, 0.06);
+  const flames = [];
+  for (const s of [-1, 1]) {
+    addMesh(g, new THREE.CylinderGeometry(0.085, 0.085, 0.42, 16), tankMat, s * 0.11, 0.02, 0.07);
+    addMesh(g, new THREE.SphereGeometry(0.085, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), capMat, s * 0.11, 0.23, 0.07);
+    addMesh(g, new THREE.CylinderGeometry(0.06, 0.08, 0.08, 14), postMat, s * 0.11, -0.22, 0.07);
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.55, 12), new THREE.MeshBasicMaterial({ color: 0xffb04a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+    fl.rotation.x = Math.PI; fl.position.set(s * 0.11, -0.52, 0.07); g.add(fl); flames.push(fl);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff7a30, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
+    glow.scale.set(0.8, 0.8, 1); glow.position.set(s * 0.11, -0.45, 0.07); g.add(glow);
+  }
+  g.userData.flames = flames; g.visible = false;
   return g;
 }
 const coinGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.07, 28); coinGeo.rotateX(Math.PI / 2);
@@ -593,13 +650,16 @@ function makeHuman(pal, faceImg) {
   const armL = limb(chest, -0.27, 0.2, 0.062, 0.19, 0.052, 0.17, shirt, pal.sleeve ? skin : shirt, hand);
   const armR = limb(chest, 0.27, 0.2, 0.062, 0.19, 0.052, 0.17, shirt, pal.sleeve ? skin : shirt, hand);
   const a = { hipsY: 0.98, hipsX: 0, twist: 0, lean: -0.15, rootY: 0, thL: 0, thR: 0, thLz: 0, thRz: 0, knL: -0.2, knR: -0.2, ftL: 0, ftR: 0, arL: 0, arR: 0, arLz: -0.12, arRz: 0.12, elL: 1.2, elR: 1.2 };
-  return { root, hips, spine, chest, neck, head, legL, legR, armL, armR, hand: armR[2], a };
+  return { root, hips, spine, chest, neck, head, legL, legR, armL, armR, hand: armR[2], a, shoe };
 }
 const RUNNER_PAL = { shirt: 0x22a99c, pants: 0x27304f, shoe: 0xf5f2ec, skin: 0xe0a77e, hood: true, zip: 0xd8d8e0, hair: 0x3a2216 };
 const CHASER_PAL = { shirt: 0x272a4a, pants: 0x14151f, shoe: 0x1a1a1a, skin: 0xb9805c, stripe: 0xd8ff3c, sleeve: false, hair: 0x15121c };
 const runner = makeHuman(RUNNER_PAL, faces.runner);
 const chaserH = makeHuman(CHASER_PAL, faces.chaser);
 runner.root.scale.setScalar(1.12); chaserH.root.scale.setScalar(1.16);
+const runnerJet = makeJetpack(), chaserJet = makeJetpack();
+runner.chest.add(runnerJet); runnerJet.position.set(0, 0.1, 0.21);
+chaserH.chest.add(chaserJet); chaserJet.position.set(0, 0.1, 0.21);
 runner.head.scale.setScalar(1.18); chaserH.head.scale.setScalar(1.18);
 scene.add(runner.root, chaserH.root);
 const damp = (cur, tgt, rate, dt) => cur + (tgt - cur) * (1 - Math.exp(-rate * dt));
@@ -614,6 +674,7 @@ function poseTargets(state, ph, extra) {
   if (state === "slide") Object.assign(t, { hipsY: 0.42, hipsX: 1.15, twist: 0, lean: 0.1, thL: 0.35, thR: 0.25, knL: -0.25, knR: -0.5, ftL: -0.3, ftR: -0.2, arL: -0.7, arR: -0.5, arLz: -0.5, arRz: 0.5, elL: 0.3, elR: 0.3 });
   if (state === "hover") Object.assign(t, { hipsY: 0.86 + Math.sin(ph * 0.35) * 0.02, twist: 0, lean: -0.12, rootY: 0.85, thL: 0.25, thR: -0.25, thLz: -0.22, thRz: 0.22, knL: -0.6, knR: -0.6, ftL: 0.25, ftR: 0.25, arL: 0.2, arR: -0.2, arLz: -1.15, arRz: 1.15, elL: 0.45, elR: 0.45 });
   if (state === "hoverAir") Object.assign(t, { hipsY: 0.82, twist: 0, lean: -0.05, rootY: 0.85, thL: 0.6, thR: -0.1, thLz: -0.2, thRz: 0.2, knL: -1.1, knR: -1.0, ftL: 0.4, ftR: 0.4, arL: 0.4, arR: -0.2, arLz: -1.4, arRz: 1.4, elL: 0.3, elR: 0.3 });
+  if (state === "fly") Object.assign(t, { hipsY: 0.98, twist: Math.sin(ph * 0.3) * 0.05, lean: -0.45, thL: -0.15 + Math.sin(ph * 0.4) * 0.12, thR: -0.25 - Math.sin(ph * 0.4) * 0.12, knL: -0.55, knR: -0.4, ftL: 0.5, ftR: 0.5, arL: -0.35, arR: -0.35, arLz: -0.35, arRz: 0.35, elL: 0.4, elR: 0.4 });
   if (extra.throwK != null) { const k = extra.throwK, e = 1 - Math.pow(1 - k, 3); Object.assign(t, { arR: -2.5 + e * 3.9, arRz: 0.25, elR: 0.25 + (1 - e) * 0.9 }); t.twist = -0.25 + e * 0.5; }
   return t;
 }
@@ -669,8 +730,9 @@ boomTrail.scale.set(1.4, 1.4, 1); scene.add(boomTrail);
 /* ================= game state ================= */
 const world = { dist: 0, speed: 10, t: 0, coins: 0, boards: 0, bonus: 0 };
 let obstacles = [], coins = [], nextRow = 0, laneBusy = [0, 0, 0];
-const player = { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0, shield: 0, throwT: 0 };
-const chaser = { z: 14, x: 0, timer: 0 };
+const player = { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0, shield: 0, throwT: 0, floor: 0, jet: 0, boots: 0 };
+const sky = { next: 0, lane: 0 };
+const chaser = { z: 14, x: 0, y: 0, timer: 0 };
 const B = { state: "held", x: 0, y: 0, z: 0, t: 0, x0: 0, cool: 0 };
 let mode = "menu", overTimer = 0, shake = 0, last = performance.now();
 let best = +(store.get("best") || 0);
@@ -678,44 +740,67 @@ let best = +(store.get("best") || 0);
 function clearTrack() {
   for (const o of obstacles) scene.remove(o.mesh);
   for (const c of coins) scene.remove(c.mesh);
-  obstacles = []; coins = [];
+  for (const p of powers) scene.remove(p.mesh);
+  obstacles = []; coins = []; powers.length = 0;
 }
 function reset(forPlay) {
   clearTrack();
   Object.assign(world, { dist: world.dist, speed: forPlay ? 15 : 10, t: 0, coins: 0, boards: 0, bonus: 0 });
-  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, inv: 0, shield: 0, throwT: 0 });
-  Object.assign(chaser, { z: forPlay ? 2.6 : 14, x: 1.2, timer: forPlay ? 2.6 : 0 });
+  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, inv: 0, shield: 0, throwT: 0, floor: 0, jet: 0, boots: 0 });
+  Object.assign(chaser, { z: forPlay ? 2.6 : 14, x: 1.2, y: 0, timer: forPlay ? 2.6 : 0 });
   if (B.state !== "held") boomHeld();
   Object.assign(B, { state: "held", cool: 0 });
   nextRow = world.dist + 34; laneBusy = [0, 0, 0]; overTimer = 0;
-  hudBoards(); hudThrow();
+  hudBoards(); hudThrow(); hudPowers();
 }
 function spawnRow(wz) {
   const easy = wz - startDist < 160;
   let blocked = laneBusy.filter(b => b > wz - 2).length;
-  const order = [-1, 0, 1].sort(() => Math.random() - 0.5);
+  const order = [-1, 0, 1].sort(() => Math.random() - 0.5), used = new Set();
   for (const lane of order) {
     const li = lane + 1;
     if (laneBusy[li] > wz - 2) continue;
     const r = Math.random();
-    if (r < (easy ? 0.16 : 0.3) && blocked < 2) {
+    if (r < (easy ? 0.13 : 0.22) && blocked < (Math.random() < 0.25 ? 2 : 1)) {
       const len = 9 + Math.random() * 9, c = Math.floor(Math.random() * 3);
+      const ramp = Math.random() < 0.45 && laneBusy[li] < wz - RAMP_LEN - 1;
+      if (ramp) addObstacle({ t: "ramp", lane, wz: wz - RAMP_LEN, len: RAMP_LEN, mesh: makeRamp() });
       addObstacle({ t: "block", lane, wz, len, c, mesh: makeTrain(c, len) });
-      laneBusy[li] = wz + len; blocked++;
-      if (Math.random() < 0.35) for (let i = 0; i < 4; i++) addCoin(lane, wz - 6 + i * 1.5, 1);
-    } else if (r < (easy ? 0.32 : 0.47)) {
-      addObstacle({ t: "barrier", lane, wz, len: 0.3, mesh: makeBarrier() });
+      laneBusy[li] = wz + len; blocked++; used.add(lane);
+      if (ramp && Math.random() < 0.7) for (let i = 0; i < Math.floor(len / 1.6); i++) addCoin(lane, wz + 0.8 + i * 1.6, TOP + 0.9);
+      else if (Math.random() < 0.35) for (let i = 0; i < 4; i++) addCoin(lane, wz - 6 + i * 1.5, 1);
+    } else if (r < (easy ? 0.3 : 0.4)) {
+      addObstacle({ t: "barrier", lane, wz, len: 0.3, mesh: makeBarrier() }); used.add(lane);
       if (Math.random() < 0.5) for (let i = -2; i <= 2; i++) addCoin(lane, wz + 0.15 + i * 1.2, 2.05 - Math.abs(i) * 0.35);
-    } else if (r < (easy ? 0.42 : 0.6)) {
-      addObstacle({ t: "gate", lane, wz, len: 0.3, mesh: makeGate() });
+    } else if (r < (easy ? 0.4 : 0.52)) {
+      addObstacle({ t: "gate", lane, wz, len: 0.3, mesh: makeGate() }); used.add(lane);
     } else if (r < 0.86) {
       const n = 5 + Math.floor(Math.random() * 4);
       for (let i = 0; i < n; i++) addCoin(lane, wz + i * 1.6, 0.9);
     }
   }
+  // jump boots: rare, in a lane with nothing in it
+  if (!easy && player.boots <= 0 && player.jet <= 0 && !powers.length && Math.random() < 0.06) {
+    const free = [-1, 0, 1].filter(l => !used.has(l) && laneBusy[l + 1] < wz + 6);
+    if (free.length) addPower(free[Math.floor(Math.random() * free.length)], wz + 5);
+  }
 }
 function addObstacle(o) { o.mesh.position.x = o.lane * LANE; scene.add(o.mesh); obstacles.push(o); placeObstacle(o); }
-function placeObstacle(o) { const z = o.wz - world.dist; o.mesh.position.z = -(z + (o.t === "block" ? o.len / 2 : 0.15)); }
+function placeObstacle(o) { const z = o.wz - world.dist; o.mesh.position.z = -(z + (o.t === "block" || o.t === "ramp" ? o.len / 2 : 0.15)); }
+function addPower(lane, wz) { const m = makeBoots(); m.position.set(lane * LANE, 0.55, 0); scene.add(m); powers.push({ type: "boots", lane, wz, mesh: m }); }
+// height of whatever the runner is standing on: ground, a ramp, or a train roof
+function floorAt(px, py) {
+  let f = 0;
+  for (const o of obstacles) {
+    if (o.dead || (o.t !== "ramp" && o.t !== "block")) continue;
+    if (Math.abs(o.lane * LANE - px) > 0.85) continue;
+    const z0 = o.wz - world.dist, z1 = z0 + o.len;
+    if (z0 > 0.25 || z1 < -0.25) continue;
+    if (o.t === "ramp") { const h = Math.min(1, Math.max(0, -z0 / o.len)) * TOP; if (py >= h - 0.9) f = Math.max(f, h); }
+    else if (py >= TOP - 0.5) f = Math.max(f, TOP);
+  }
+  return f;
+}
 function addCoin(lane, wz, y) { const m = new THREE.Mesh(coinGeo, coinMat); m.castShadow = true; m.position.set(lane * LANE, y, 0); scene.add(m); coins.push({ lane, wz, y, mesh: m }); }
 function removeObstacle(o) { scene.remove(o.mesh); o.dead = true; }
 let startDist = 0;
@@ -732,14 +817,29 @@ function update(dt) {
     return;
   }
   const playing = mode === "play";
-  if (playing) world.speed = Math.min(34, world.speed + dt * 0.22);
+  if (playing) world.speed = Math.min(29, world.speed + dt * 0.16);
   world.dist += world.speed * dt;
-  if (playing) while (nextRow < world.dist + 150) { spawnRow(nextRow); nextRow += 11 + Math.random() * 7 + world.speed * 0.18; }
+  if (playing) while (nextRow < world.dist + 150) { spawnRow(nextRow); nextRow += 15 + Math.random() * 8 + world.speed * 0.28; }
 
   const tx = player.lane * LANE;
   player.x = damp(player.x, tx, 16, dt); if (Math.abs(player.x - tx) < 0.01) player.x = tx;
-  player.vy -= (player.slide > 0 ? 90 : 42) * dt;
-  player.y = Math.max(0, player.y + player.vy * dt); if (player.y === 0) player.vy = 0;
+  if (player.jet > 0) {
+    player.jet -= dt;
+    player.y = damp(player.y, JET_ALT, 2.2, dt); player.vy = 0; player.slide = 0; player.floor = 0;
+    const endDist = world.dist + player.jet * world.speed - 12;
+    while (sky.next < world.dist + 130 && sky.next < endDist) {
+      addCoin(sky.lane, sky.next, JET_ALT + 0.95); sky.next += 1.5;
+      if (Math.random() < 0.06) sky.lane = Math.max(-1, Math.min(1, sky.lane + (Math.random() < 0.5 ? -1 : 1)));
+    }
+    if (player.jet <= 0) endJet();
+  } else {
+    const floor = floorAt(player.x, player.y);
+    player.vy -= (player.slide > 0 ? 90 : 42) * dt;
+    player.y += player.vy * dt;
+    if (player.y <= floor) { player.y = floor; if (player.vy < 0) player.vy = 0; }
+    player.floor = floor;
+  }
+  if (player.boots > 0) { player.boots -= dt; if (player.boots <= 0) { player.boots = 0; note("Jump boots wore off"); } }
   player.slide = Math.max(0, player.slide - dt);
   player.inv = Math.max(0, player.inv - dt);
   player.shield = Math.max(0, player.shield - dt);
@@ -747,21 +847,22 @@ function update(dt) {
   player.phase += dt * (5.5 + world.speed * 0.32);
 
   chaser.timer = Math.max(0, chaser.timer - dt);
-  chaser.z = damp(chaser.z, chaser.timer > 0 ? 2.6 : 14, chaser.timer > 0 ? 4 : 1.2, dt);
+  if (player.jet > 0) { chaser.z = damp(chaser.z, 1.9, 1.6, dt); chaser.y = damp(chaser.y, player.y - 0.35, 2, dt); }
+  else { chaser.z = damp(chaser.z, chaser.timer > 0 ? 2.6 : 14, chaser.timer > 0 ? 4 : 0.9, dt); chaser.y = damp(chaser.y, 0, 2.5, dt); }
   chaser.x = damp(chaser.x, player.x + (player.lane >= 1 ? -1.15 : 1.15), 5, dt);
 
   updateBoomerang(dt);
 
-  if (playing && player.shield <= 0) {
+  if (playing && player.shield <= 0 && player.jet <= 0) {
     const tall = player.slide > 0 ? 0.9 : 1.9;
     for (const o of obstacles) {
-      if (o.dead) continue;
+      if (o.dead || o.t === "ramp") continue;
       const z0 = o.wz - world.dist, z1 = z0 + o.len;
       if (z1 < -0.4 || z0 > 0.4) continue;
       const ox = o.lane * LANE, gap = Math.abs(ox - player.x);
-      if (gap > 1.35) continue;
+      if (gap > (o.t === "block" ? 1.15 : 1.3)) continue;
       let hit = false;
-      if (o.t === "block") hit = player.y < 3.1;
+      if (o.t === "block") hit = player.y < TOP - 0.45;
       else if (o.t === "barrier") hit = player.y < 1.05;
       else if (o.t === "gate") hit = !(player.slide > 0) && player.y + tall > 1.5 && player.y < 2.45;
       if (!hit) continue;
@@ -775,14 +876,24 @@ function update(dt) {
     if (z < -3) { scene.remove(c.mesh); coins.splice(i, 1); continue; }
     if (playing && Math.abs(z) < 0.7 && Math.abs(c.lane * LANE - player.x) < 0.8 && Math.abs(c.y - (player.y + 0.9)) < 1.15) { collectCoin(i); }
   }
+  for (let i = powers.length - 1; i >= 0; i--) {
+    const pw = powers[i], z = pw.wz - world.dist;
+    if (z < -3) { scene.remove(pw.mesh); powers.splice(i, 1); continue; }
+    if (playing && Math.abs(z) < 0.8 && Math.abs(pw.lane * LANE - player.x) < 0.9 && player.y - player.floor < 2.2) {
+      scene.remove(pw.mesh); powers.splice(i, 1);
+      player.boots = BOOT_TIME; sfx.board(); burst(player.x, 0.6, 0, [0x3cff8a, 0xffffff], 16, 4);
+      note("Jump boots! Extra-high jumps for 30 seconds");
+    }
+  }
   for (const o of obstacles) if (!o.dead && o.wz + o.len - world.dist < -9) removeObstacle(o);
   obstacles = obstacles.filter(o => !o.dead);
-  if (playing) { $("#score").textContent = score().toLocaleString(); }
+  if (playing) { $("#score").textContent = score().toLocaleString(); hudPowers(); }
 }
 function collectCoin(i) {
   const c = coins[i]; scene.remove(c.mesh); coins.splice(i, 1);
   world.coins++; sfx.coin(); $("#coinCount").textContent = world.coins;
   if (world.coins % BOARD_COST === 0) gainBoard();
+  if (world.coins % JET_COST === 0) gainJet();
   hudBoards();
 }
 const score = () => Math.floor((world.dist - startDist) / 2) + world.coins * 5 + world.bonus;
@@ -800,12 +911,35 @@ function crash(o) {
 }
 
 /* ---------- hoverboards: every 26 coins is an extra life ---------- */
-const BOARD_COST = 26, BOARD_MAX = 3;
+const BOARD_COST = 100, BOARD_MAX = 3, JET_COST = 500, JET_TIME = 30, JET_ALT = 6.4, BOOT_TIME = 30;
 function hudBoards() {
   $("#boardCount").textContent = world.boards;
   $("#boardNext").textContent = `${world.coins % BOARD_COST}/${BOARD_COST}`;
   $("#boardHud").classList.toggle("has", world.boards > 0);
   $("#coinCount").textContent = world.coins;
+  $("#jetNext").textContent = `${JET_COST - world.coins % JET_COST} coins to jetpack`;
+}
+let hudJ = -1, hudB = -1;
+function hudPowers() {
+  const j = Math.ceil(player.jet), b = Math.ceil(player.boots);
+  if (j !== hudJ) { hudJ = j; $("#jetHud").hidden = j <= 0; $("#jetTime").textContent = j; }
+  if (b !== hudB) { hudB = b; $("#bootHud").hidden = b <= 0; $("#bootTime").textContent = b; }
+}
+function gainJet() {
+  player.jet = JET_TIME; player.slide = 0; player.vy = 0; chaser.timer = 0;
+  sky.next = world.dist + 22; sky.lane = player.lane;
+  for (const c of coins) if (c.wz - world.dist > 20) scene.remove(c.mesh);
+  coins = coins.filter(c => c.wz - world.dist <= 20);
+  const cn = nameOf("chaser");
+  note(cn ? `Jetpack! ${cn} has one too!` : "Jetpack! The chaser has one too!");
+  [392, 523, 659, 784, 1047].forEach((f, i) => blip(f, 0.14, "sawtooth", 0.05, 0, i * 0.06)); noise(0.8, 0.1, 900);
+  hudPowers();
+}
+function endJet() {
+  player.jet = 0; player.vy = 0; player.shield = 3; player.inv = 3;
+  for (const o of obstacles) { const z0 = o.wz - world.dist; if (z0 < 8 && z0 + o.len > -2) removeObstacle(o); }
+  note("Jetpack's out of fuel. Heads up!"); noise(0.4, 0.08, 500);
+  hudPowers();
 }
 function gainBoard() {
   if (world.boards >= BOARD_MAX) { world.bonus += 50; note("3 hoverboards is the max. +50 points"); sfx.catchIt(); return; }
@@ -846,7 +980,7 @@ function updateBoomerang(dt) {
   if (B.state === "out") {
     B.z += 42 * dt;
     B.x = damp(B.x, B.x0 + Math.sin(Math.min(1, B.z / 40) * Math.PI) * 0.6, 10, dt);
-    B.y = damp(B.y, 1.35, 8, dt);
+    B.y = damp(B.y, player.y + 1.35, 8, dt);
     if (B.z > 42) B.state = "back";
   } else {
     const hp = new THREE.Vector3(); runner.hand.getWorldPosition(hp);
@@ -860,7 +994,7 @@ function updateBoomerang(dt) {
   boomTrail.position.copy(boom.position); boomTrail.material.opacity = 0.55;
   if (mode !== "play") return;
   for (const o of obstacles) {
-    if (o.dead) continue;
+    if (o.dead || o.t === "ramp" || B.y > TOP + 1.2) continue;
     const z0 = o.wz - world.dist, z1 = z0 + o.len;
     if (B.z < z0 - 0.6 || B.z > z1 + 0.6 || Math.abs(B.x - o.lane * LANE) > 1.25) continue;
     smashFx(o); removeObstacle(o); sfx.smash(); shake = Math.max(shake, 0.25);
@@ -888,13 +1022,19 @@ function render(dt) {
   updateScenery(world.dist);
   for (const o of obstacles) { placeObstacle(o); if (o.t === "gate") { const on = Math.floor(world.t * 3) % 2; o.mesh.userData.lights.forEach((l, i) => l.visible = (i + on) % 2 === 0); } }
   for (const c of coins) { c.mesh.position.z = -(c.wz - world.dist); c.mesh.rotation.y = world.t * 3.2 + c.wz; }
+  for (const pw of powers) { pw.mesh.position.z = -(pw.wz - world.dist); pw.mesh.rotation.y = world.t * 2; pw.mesh.position.y = 0.45 + Math.sin(world.t * 4) * 0.12; }
   updateParts(dt, mode === "over" ? 0 : 0);
 
-  const riding = world.boards > 0 && mode !== "over";
+  const riding = world.boards > 0 && mode !== "over" && player.jet <= 0;
   const lift = riding ? 0.34 + Math.sin(world.t * 3.4) * 0.05 : 0;
   runner.root.position.set(player.x, player.y + lift, 0);
-  let st = player.slide > 0 ? "slide" : player.y > 0.05 ? "air" : "run";
+  let st = player.slide > 0 ? "slide" : player.y > player.floor + 0.05 ? "air" : "run";
   if (riding && st !== "slide") st = st === "air" ? "hoverAir" : "hover";
+  if (player.jet > 0) st = "fly";
+  runnerJet.visible = player.jet > 0;
+  if (runnerJet.visible) runnerJet.userData.flames.forEach(f => f.scale.set(1, 0.7 + Math.random() * 0.6, 1));
+  runner.shoe.color.setHex(player.boots > 0 ? 0x3cff8a : 0xf5f2ec);
+  runner.shoe.emissive.setHex(player.boots > 0 ? 0x18a050 : 0x000000);
   if (mode === "over") st = "run";
   const lean = (player.lane * LANE - player.x) * 0.12;
   runner.root.rotation.z = damp(runner.root.rotation.z, -lean, 10, dt);
@@ -907,21 +1047,25 @@ function render(dt) {
     hover.position.set(player.x, player.y + lift - 0.02 + (st === "slide" ? -0.1 : 0), -0.05);
     hover.rotation.z = runner.root.rotation.z * 1.5; hover.rotation.x = Math.sin(world.t * 2.1) * 0.03;
     hover.userData.under.material.opacity = 0.55 + Math.sin(world.t * 9) * 0.15;
-    hover.userData.under.position.y = -0.2 - (player.y + lift) * 0.9;
+    hover.userData.under.position.y = -0.2 - (player.y - player.floor + lift) * 0.9;
     hover.userData.under.scale.setScalar(1 + (player.y) * 0.25);
   }
 
   chaserH.root.visible = chaser.z < 10;
-  chaserH.root.position.set(chaser.x, 0, chaser.z);
-  animateHuman(chaserH, "run", player.phase * 1.04 + 1.3, dt);
+  chaserH.root.position.set(chaser.x, chaser.y, chaser.z);
+  const cFly = chaser.y > 0.4;
+  chaserJet.visible = cFly;
+  if (cFly) chaserJet.userData.flames.forEach(f => f.scale.set(1, 0.7 + Math.random() * 0.6, 1));
+  animateHuman(chaserH, cFly ? "fly" : "run", player.phase * 1.04 + 1.3, dt);
 
   // camera
   const W = window.innerWidth, H = window.innerHeight;
   const tx = player.x * 0.62;
   camera.position.x = damp(camera.position.x, tx, 6, dt);
-  camera.position.y = damp(camera.position.y, camRig.up + player.y * 0.35, 5, dt);
-  camera.position.z = camRig.back;
-  camLook.set(damp(camLook.x, player.x * 0.8, 7, dt), 1.1 + player.y * 0.45, -9);
+  const flying = player.jet > 0;
+  camera.position.y = damp(camera.position.y, flying ? player.y + 3.4 : camRig.up + player.y * 0.35, flying ? 2.2 : 4, dt);
+  camera.position.z = damp(camera.position.z, camRig.back + (flying ? 1.6 : 0), 2, dt);
+  camLook.set(damp(camLook.x, player.x * 0.8, 7, dt), damp(camLook.y, flying ? player.y - 0.6 : 1.1 + player.y * 0.45, flying ? 2.2 : 6, dt), -9);
   if (shake > 0) { camera.position.x += rnd(-1, 1) * shake * 0.25; camera.position.y += rnd(-1, 1) * shake * 0.2; shake = Math.max(0, shake - dt * 1.8); }
   camera.lookAt(camLook);
   const fovT = camRig.fov + Math.min(8, Math.max(0, world.speed - 15) * 0.35);
@@ -958,9 +1102,11 @@ function act(dir) {
     if (nl < -1 || nl > 1) return;
     player.prevLane = player.lane; player.lane = nl; sfx.lane();
   } else if (dir === "up") {
-    if (player.y < 0.05) { player.vy = 13.2; player.slide = 0; sfx.jump(); }
+    if (player.jet > 0) return;
+    if (player.y <= player.floor + 0.05) { player.vy = player.boots > 0 ? 19 : 13.2; player.slide = 0; player.boots > 0 ? blip(260, 0.32, "triangle", 0.09, 3) : sfx.jump(); }
   } else if (dir === "down") {
-    player.slide = 0.72; if (player.y > 0) player.vy = -16; sfx.slide();
+    if (player.jet > 0) return;
+    player.slide = 0.72; if (player.y > player.floor) player.vy = -16; sfx.slide();
   }
 }
 let touch = null;
