@@ -735,6 +735,51 @@ function makeRamp() {
   }
   return g;
 }
+const BRIDGE_TOP = 4.6, BRIDGE_LEN = 24;
+const concreteMat = new THREE.MeshStandardMaterial({ color: 0x5f587e, roughness: 0.85 });
+const deckTex = canvasTex(256, 512, (g, w, h) => {
+  g.fillStyle = "#3d3756"; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 4000; i++) { const v = Math.floor(rnd(50, 90)); g.fillStyle = `rgba(${v},${v - 5},${v + 20},.6)`; g.fillRect(rnd(0, w), rnd(0, h), 2, 2); }
+  g.fillStyle = "#ffc93c"; for (const x of [0.33, 0.66]) for (let y = 0; y < h; y += 64) g.fillRect(w * x - 3, y, 6, 34);
+  g.fillStyle = "#e8e4f5"; g.fillRect(4, 0, 6, h); g.fillRect(w - 10, 0, 6, h);
+});
+deckTex.wrapS = deckTex.wrapT = THREE.RepeatWrapping; deckTex.repeat.set(1, 3);
+const deckMat = new THREE.MeshStandardMaterial({ map: deckTex, roughness: 0.8 });
+const girderMat = new THREE.MeshStandardMaterial({ color: 0x2c2846, metalness: 0.7, roughness: 0.45 });
+const railLightMat = new THREE.MeshBasicMaterial({ color: 0x9ff8ff });
+function makeBridge() {
+  const g = new THREE.Group(), L = BRIDGE_LEN, W = 9.8;
+  addMesh(g, boxGeo, deckMat, 0, BRIDGE_TOP - 0.03, 0, false).scale.set(W, 0.06, L);              // road surface
+  addMesh(g, boxGeo, concreteMat, 0, BRIDGE_TOP - 0.35, 0).scale.set(W + 0.2, 0.6, L);            // deck slab
+  for (const sx of [-1, 1]) {
+    addMesh(g, boxGeo, girderMat, sx * 4.2, BRIDGE_TOP - 0.95, 0).scale.set(0.35, 0.7, L);        // side girders
+    addMesh(g, boxGeo, concreteMat, sx * 5.05, BRIDGE_TOP + 0.35, 0).scale.set(0.3, 0.7, L);      // parapet
+    addMesh(g, boxGeo, railLightMat, sx * 4.88, BRIDGE_TOP + 0.62, 0, false).scale.set(0.05, 0.05, L - 0.4); // light strip
+    for (const z of [-L / 2 + 1.2, L / 2 - 1.2]) {
+      addMesh(g, boxGeo, concreteMat, sx * 5.4, (BRIDGE_TOP - 0.6) / 2, z).scale.set(1.0, BRIDGE_TOP - 0.6, 1.4); // pillars beside the track
+      addMesh(g, boxGeo, girderMat, sx * 5.4, BRIDGE_TOP - 0.65, z).scale.set(1.3, 0.2, 1.7);
+    }
+  }
+  for (let z = -L / 2 + 2; z < L / 2; z += 4) addMesh(g, boxGeo, girderMat, 0, BRIDGE_TOP - 0.75, z).scale.set(W - 1, 0.25, 0.25); // cross beams
+  return g;
+}
+const keyMat = new THREE.MeshStandardMaterial({ color: 0xffc93c, metalness: 1, roughness: 0.25, emissive: 0x5a3a00, emissiveIntensity: 0.6 });
+function makeKeyPickup() {
+  const g = new THREE.Group();
+  addMesh(g, new THREE.TorusGeometry(0.17, 0.06, 10, 24), keyMat, -0.25, 0, 0);
+  addMesh(g, boxGeo, keyMat, 0.1, 0, 0).scale.set(0.5, 0.08, 0.08);
+  addMesh(g, boxGeo, keyMat, 0.28, -0.1, 0).scale.set(0.07, 0.14, 0.08);
+  addMesh(g, boxGeo, keyMat, 0.16, -0.08, 0).scale.set(0.07, 0.1, 0.08);
+  return g;
+}
+function makeBoardPickup() {
+  const g = new THREE.Group();
+  addMesh(g, boxGeo, new THREE.MeshStandardMaterial({ color: 0x1b1840, metalness: 0.7, roughness: 0.25 }), 0, 0, 0).scale.set(0.5, 0.07, 1.4);
+  const neon = new THREE.MeshBasicMaterial({ color: 0x38f0ff });
+  for (const sx of [-1, 1]) addMesh(g, boxGeo, neon, sx * 0.26, 0.02, 0, false).scale.set(0.03, 0.04, 1.3);
+  g.rotation.x = -0.5;
+  return g;
+}
 const powers = [];
 const bootMat = new THREE.MeshStandardMaterial({ color: 0x12c955, emissive: 0x0b7a33, emissiveIntensity: 0.7, roughness: 0.4, metalness: 0.15 });
 const springMat = new THREE.MeshStandardMaterial({ color: 0xd8d8e8, metalness: 0.9, roughness: 0.25 });
@@ -984,6 +1029,7 @@ function reset(forPlay) {
   if (B.state !== "held") boomHeld();
   Object.assign(B, { state: "held", cool: 0 }); hudCool = -1;
   nextRow = world.dist + 34; laneBusy = [0, 0, 0]; overTimer = 0;
+  nextBridge = world.dist + 230 + Math.random() * 120;
   hudBoards(); hudThrow(); hudPowers();
 }
 function spawnRow(wz) {
@@ -1020,13 +1066,15 @@ function spawnRow(wz) {
   }
 }
 function addObstacle(o) { o.mesh.position.x = o.lane * LANE; scene.add(o.mesh); obstacles.push(o); placeObstacle(o); }
-function placeObstacle(o) { const z = o.wz - world.dist; o.mesh.position.z = -(z + (o.t === "block" || o.t === "ramp" ? o.len / 2 : 0.15)); }
-const PICKUP_COLOR = { boots: 0x3cff8a, magnet: 0xff5a4a, jetpack: 0xffb04a };
-function addPower(lane, wz, type = "boots") {
+function placeObstacle(o) { const z = o.wz - world.dist; o.mesh.position.z = -(z + (o.t === "block" || o.t === "ramp" || o.t === "bridge" ? o.len / 2 : 0.15)); }
+const PICKUP_COLOR = { boots: 0x3cff8a, magnet: 0xff5a4a, jetpack: 0xffb04a, hoverboard: 0x38f0ff, key: 0xffc93c };
+function addPower(lane, wz, type = "boots", baseY = 0) {
   const g = new THREE.Group(), item = new THREE.Group();
   let inner;
   if (type === "magnet") inner = makeMagnet();
   else if (type === "jetpack") { inner = makeJetpack(); inner.visible = true; inner.scale.setScalar(1.6); inner.rotation.y = Math.PI; }
+  else if (type === "key") inner = makeKeyPickup();
+  else if (type === "hoverboard") inner = makeBoardPickup();
   else inner = makeBoots();
   item.add(inner); item.scale.setScalar(2.1); g.add(item); g.userData.item = item;
   const col = PICKUP_COLOR[type];
@@ -1037,13 +1085,14 @@ function addPower(lane, wz, type = "boots") {
   ring.rotation.x = Math.PI / 2; ring.position.y = 0.04; g.add(ring); g.userData.ring = ring;
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
   halo.scale.set(3.4, 3.4, 1); halo.position.y = 1.2; g.add(halo);
-  g.position.set(lane * LANE, 0, 0); scene.add(g); powers.push({ type, lane, wz, mesh: g });
+  g.position.set(lane * LANE, baseY, 0); scene.add(g); powers.push({ type, lane, wz, mesh: g, baseY });
 }
 // height of whatever the runner is standing on: ground, a ramp, or a train roof
 function floorAt(px, py) {
   let f = 0;
   for (const o of obstacles) {
     if (o.dead || o.t === "gate") continue;
+    if (o.t === "bridge") { const z0 = o.wz - world.dist; if (z0 <= 0.3 && z0 + o.len >= -0.3 && py >= BRIDGE_TOP - 0.8) f = Math.max(f, BRIDGE_TOP); continue; }
     if (Math.abs(o.lane * LANE - px) > 0.85) continue;
     const z0 = o.wz - world.dist, z1 = z0 + o.len;
     if (z0 > 0.25 || z1 < -0.25) continue;
@@ -1055,7 +1104,27 @@ function floorAt(px, py) {
 }
 function addCoin(lane, wz, y) { const m = new THREE.Mesh(coinGeo, coinMat); m.castShadow = true; m.position.set(lane * LANE, y, 0); scene.add(m); coins.push({ lane, wz, y, mesh: m }); }
 function removeObstacle(o) { scene.remove(o.mesh); o.dead = true; }
-let startDist = 0;
+let startDist = 0, nextBridge = 0;
+// a parked train with a ramp leads up to a bridge over all three lanes; coins and a bonus wait on top
+function spawnBridge(wz) {
+  const lane = [-1, 0, 1][Math.floor(Math.random() * 3)], trainLen = 13, c = Math.floor(Math.random() * 3);
+  const trainAt = wz + RAMP_LEN, bridgeAt = trainAt + trainLen + 0.6;
+  addObstacle({ t: "ramp", lane, wz, len: RAMP_LEN, mesh: makeRamp() });
+  addObstacle({ t: "block", lane, wz: trainAt, len: trainLen, c, mesh: makeTrain(c, trainLen) });
+  for (let i = 0; i < 7; i++) addCoin(lane, trainAt + 1 + i * 1.6, TOP + 0.9);
+  // coins arc from the end of the train up onto the bridge, then run along the top
+  for (let i = 0; i < 4; i++) addCoin(lane, bridgeAt - 1.8 + i * 1.3, TOP + 1.4 + i * 0.5);
+  const o = { t: "bridge", lane: 0, wz: bridgeAt, len: BRIDGE_LEN, mesh: makeBridge() };
+  o.mesh.position.x = 0; scene.add(o.mesh); obstacles.push(o); placeObstacle(o);
+  const coinLanes = [-1, 0, 1].sort(() => Math.random() - 0.5).slice(0, 2);
+  for (const l of coinLanes) for (let i = 0; i < 12; i++) addCoin(l, bridgeAt + 2 + i * 1.6, BRIDGE_TOP + 0.9);
+  if (Math.random() < 0.8 && !powers.length) {
+    const pool = ["jetpack", "jetpack", "jetpack", "magnet", "magnet", "magnet", "boots", "boots", "hoverboard", "hoverboard", "key"];
+    addPower([-1, 0, 1][Math.floor(Math.random() * 3)], bridgeAt + BRIDGE_LEN * 0.6, pool[Math.floor(Math.random() * pool.length)], BRIDGE_TOP);
+  }
+  laneBusy = [0, 0, 0];
+  return bridgeAt + BRIDGE_LEN + 10;
+}
 
 function update(dt) {
   world.t += dt;
@@ -1074,7 +1143,10 @@ function update(dt) {
   const playing = mode === "play";
   if (playing) world.speed = Math.min(29, world.speed + dt * 0.16);
   world.dist += world.speed * dt;
-  if (playing) while (nextRow < world.dist + 150) { spawnRow(nextRow); nextRow += 15 + Math.random() * 8 + world.speed * 0.28; }
+  if (playing) while (nextRow < world.dist + 170) {
+    if (nextRow >= nextBridge && player.jet <= 0) { nextRow = spawnBridge(nextRow); nextBridge = nextRow + 320 + Math.random() * 260; continue; }
+    spawnRow(nextRow); nextRow += 15 + Math.random() * 8 + world.speed * 0.28;
+  }
 
   const tx = player.lane * LANE;
   player.x = damp(player.x, tx, 16, dt); if (Math.abs(player.x - tx) < 0.01) player.x = tx;
@@ -1113,7 +1185,7 @@ function update(dt) {
   if (playing && player.shield <= 0 && player.jet <= 0) {
     const tall = player.slide > 0 ? 0.9 : 1.9;
     for (const o of obstacles) {
-      if (o.dead || o.t === "ramp") continue;
+      if (o.dead || o.t === "ramp" || o.t === "bridge") continue;
       const z0 = o.wz - world.dist, z1 = z0 + o.len;
       if (z1 < -0.4 || z0 > 0.4) continue;
       const ox = o.lane * LANE, gap = Math.abs(ox - player.x);
@@ -1147,9 +1219,11 @@ function update(dt) {
   for (let i = powers.length - 1; i >= 0; i--) {
     const pw = powers[i], z = pw.wz - world.dist;
     if (z < -3) { scene.remove(pw.mesh); powers.splice(i, 1); continue; }
-    if (playing && Math.abs(z) < 1.3 && Math.abs(pw.lane * LANE - player.x) < 1.25 && player.y < 3.6 && player.jet <= 0) {
+    if (playing && Math.abs(z) < 1.3 && Math.abs(pw.lane * LANE - player.x) < 1.25 && Math.abs(player.y - (pw.baseY || 0)) < 3 && player.jet <= 0) {
       scene.remove(pw.mesh); powers.splice(i, 1); sfx.board();
       if (pw.type === "jetpack") { gainJet(); burst(player.x, 1, 0, [0xffb04a, 0xffffff], 22, 5); }
+      else if (pw.type === "key") { keys.count++; saveKeys(); hudKeys(); burst(player.x, player.y + 1, 0, [0xffc93c, 0xffffff], 24, 5); note(`You found a key! You have ${keys.count}`); }
+      else if (pw.type === "hoverboard") { gainBoard(); burst(player.x, player.y + 1, 0, [0x38f0ff, 0xffffff], 20, 5); }
       else if (pw.type === "magnet") { player.magnet = MAGNET_TIME; burst(player.x, 1, 0, [0xe5352b, 0xffffff], 16, 4); note("Coin magnet! 30 seconds"); }
       else { player.boots = BOOT_TIME; burst(player.x, 0.6, 0, [0x3cff8a, 0xffffff], 16, 4); note("Jump boots! Extra-high jumps for 30 seconds"); }
     }
@@ -1216,7 +1290,7 @@ function useKey() {
   if (keys.count <= 0) return declineContinue();
   clearInterval(contTimer); $("#contScreen").hidden = true;
   keys.count--; saveKeys(); hudKeys();
-  for (const o of obstacles) { const z0 = o.wz - world.dist; if (z0 < 22 && z0 + o.len > -3) removeObstacle(o); }
+  for (const o of obstacles) { const z0 = o.wz - world.dist; if (o.t !== "bridge" && z0 < 22 && z0 + o.len > -3) removeObstacle(o); }
   obstacles = obstacles.filter(o => !o.dead);
   Object.assign(player, { y: 0, vy: 0, slide: 0, shield: 3, inv: 3, floor: 0 });
   chaser.timer = 0; chaser.z = 6;
@@ -1255,7 +1329,7 @@ function gainJet() {
 }
 function endJet() {
   player.jet = 0; player.vy = 0; player.shield = 3; player.inv = 3;
-  for (const o of obstacles) { const z0 = o.wz - world.dist; if (z0 < 8 && z0 + o.len > -2) removeObstacle(o); }
+  for (const o of obstacles) { const z0 = o.wz - world.dist; if (o.t !== "bridge" && z0 < 8 && z0 + o.len > -2) removeObstacle(o); }
   note("Jetpack's out of fuel. Heads up!"); noise(0.4, 0.08, 500);
   hudPowers(); hudBoards();
 }
@@ -1332,7 +1406,7 @@ function updateBoomerang(dt) {
   boomTrail.position.copy(boom.position); boomTrail.material.opacity = 0.55;
   if (mode !== "play") return;
   for (const o of obstacles) {
-    if (o.dead || o.t === "ramp" || B.y > TOP + 1.2) continue;
+    if (o.dead || o.t === "ramp" || o.t === "bridge" || B.y > TOP + 1.2) continue;
     const z0 = o.wz - world.dist, z1 = z0 + o.len;
     if (B.z < z0 - 0.6 || B.z > z1 + 0.6 || Math.abs(B.x - o.lane * LANE) > 1.25) continue;
     smashFx(o); removeObstacle(o); sfx.smash(); shake = Math.max(shake, 0.25);
@@ -1429,9 +1503,9 @@ function render(dt) {
   const tx = player.x * 0.62;
   camera.position.x = damp(camera.position.x, tx, 6, dt);
   const flying = player.jet > 0;
-  camera.position.y = damp(camera.position.y, flying ? player.y + 3.4 : camRig.up + player.y * 0.35, flying ? 2.2 : 4, dt);
+  camera.position.y = damp(camera.position.y, flying ? player.y + 3.4 : camRig.up + player.y * 0.55, flying ? 2.2 : 4, dt);
   camera.position.z = damp(camera.position.z, camRig.back + (flying ? 1.6 : 0), 2, dt);
-  camLook.set(damp(camLook.x, player.x * 0.8, 7, dt), damp(camLook.y, flying ? player.y - 0.6 : 1.1 + player.y * 0.45, flying ? 2.2 : 6, dt), -9);
+  camLook.set(damp(camLook.x, player.x * 0.8, 7, dt), damp(camLook.y, flying ? player.y - 0.6 : 1.1 + player.y * 0.6, flying ? 2.2 : 6, dt), -9);
   if (shake > 0) { camera.position.x += rnd(-1, 1) * shake * 0.25; camera.position.y += rnd(-1, 1) * shake * 0.2; shake = Math.max(0, shake - dt * 1.8); }
   camera.lookAt(camLook);
   const fovT = camRig.fov + Math.min(8, Math.max(0, world.speed - 15) * 0.35);
