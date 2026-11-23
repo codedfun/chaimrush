@@ -637,7 +637,7 @@ function makeRamp() {
   return g;
 }
 const powers = [];
-const bootMat = new THREE.MeshStandardMaterial({ color: 0x3cff8a, emissive: 0x18a050, emissiveIntensity: 0.6, roughness: 0.35, metalness: 0.2 });
+const bootMat = new THREE.MeshStandardMaterial({ color: 0x12c955, emissive: 0x0b7a33, emissiveIntensity: 0.7, roughness: 0.4, metalness: 0.15 });
 const springMat = new THREE.MeshStandardMaterial({ color: 0xd8d8e8, metalness: 0.9, roughness: 0.25 });
 function makeBoots() {
   const g = new THREE.Group();
@@ -751,6 +751,22 @@ const runner = makeHuman(RUNNER_PAL, faces.runner);
 const chaserH = makeHuman(CHASER_PAL, faces.chaser);
 runner.root.scale.setScalar(1.12); chaserH.root.scale.setScalar(1.16);
 const runnerJet = makeJetpack(), chaserJet = makeJetpack();
+const wornBoots = [];
+const bootTrim = new THREE.MeshStandardMaterial({ color: 0x0f3b2a, roughness: 0.5 });
+const bootSole = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x3cff8a, emissiveIntensity: 0.5, roughness: 0.4 });
+for (const leg of [runner.legL, runner.legR]) {
+  const g = new THREE.Group();
+  addMesh(g, boxGeo, bootMat, 0, 0.1, 0.0).scale.set(0.24, 0.3, 0.24);            // shaft up the shin
+  addMesh(g, boxGeo, bootMat, 0, -0.03, -0.09).scale.set(0.25, 0.17, 0.44);        // big toe box
+  addMesh(g, boxGeo, bootTrim, 0, 0.24, 0.0).scale.set(0.26, 0.05, 0.26);          // cuff
+  addMesh(g, boxGeo, bootTrim, 0, 0.0, -0.31).scale.set(0.2, 0.08, 0.03);          // toe cap
+  addMesh(g, boxGeo, bootSole, 0, -0.13, -0.08).scale.set(0.27, 0.05, 0.46);       // glowing sole
+  for (const y of [-0.19, -0.25, -0.31]) addMesh(g, new THREE.TorusGeometry(0.09, 0.028, 8, 18), springMat, 0, y, -0.08).rotation.x = Math.PI / 2; // springs
+  addMesh(g, boxGeo, bootTrim, 0, -0.36, -0.08).scale.set(0.24, 0.04, 0.3);        // spring foot plate
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x3cff8a, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.7, depthWrite: false }));
+  halo.scale.set(0.9, 0.9, 1); halo.position.set(0, -0.15, -0.05); g.add(halo);
+  g.scale.setScalar(1.2); g.visible = false; leg[2].add(g); wornBoots.push(g);
+}
 runner.chest.add(runnerJet); runnerJet.position.set(0, 0.1, 0.21);
 chaserH.chest.add(chaserJet); chaserJet.position.set(0, 0.1, 0.21);
 runner.head.scale.setScalar(1.18); chaserH.head.scale.setScalar(1.18);
@@ -968,7 +984,8 @@ function update(dt) {
   for (let i = coins.length - 1; i >= 0; i--) {
     const c = coins[i], z = c.wz - world.dist;
     if (z < -3) { scene.remove(c.mesh); coins.splice(i, 1); continue; }
-    if (playing && Math.abs(z) < 0.7 && Math.abs(c.lane * LANE - player.x) < 0.8 && Math.abs(c.y - (player.y + 0.9)) < 1.15) { collectCoin(i); }
+    const reach = player.boots > 0 ? c.y <= player.y + 2.2 : Math.abs(c.y - (player.y + 0.9)) < 1.15;
+    if (playing && Math.abs(z) < 0.7 && Math.abs(c.lane * LANE - player.x) < 0.8 && reach) { collectCoin(i); }
   }
   for (let i = powers.length - 1; i >= 0; i--) {
     const pw = powers[i], z = pw.wz - world.dist;
@@ -1138,8 +1155,11 @@ function render(dt) {
   if (player.jet > 0) st = "fly";
   runnerJet.visible = player.jet > 0;
   if (runnerJet.visible) runnerJet.userData.flames.forEach(f => f.scale.set(1, 0.7 + Math.random() * 0.6, 1));
-  runner.shoe.color.setHex(player.boots > 0 ? 0x3cff8a : 0xf5f2ec);
-  runner.shoe.emissive.setHex(player.boots > 0 ? 0x18a050 : 0x000000);
+  const booted = player.boots > 0 && player.jet <= 0;
+  const bootFlash = player.boots > 0 && player.boots < 3 && Math.floor(world.t * 8) % 2; // flicker in the last 3 seconds
+  wornBoots.forEach(b => b.visible = booted && !bootFlash);
+  // raise the runner so the springs sit on the ground instead of sinking into it
+  if (booted) runner.root.position.y += 0.36;
   if (mode === "over") st = "run";
   const lean = (player.lane * LANE - player.x) * 0.12;
   runner.root.rotation.z = damp(runner.root.rotation.z, -lean, 10, dt);

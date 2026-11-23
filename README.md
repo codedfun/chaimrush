@@ -15,7 +15,7 @@ A 3D endless runner for phones. Put a face on the runner and a face on the chase
 
 - **Hoverboard (every 100 coins):** an extra life. A crash while riding wrecks the board instead of ending the run: you hop clear, pass through obstacles for about two seconds, and the chaser drops back. You can carry up to 3.
 - **Jetpack (every 500 coins):** 30 seconds of flight above the trains, through long trails of coins. The chaser gets a jetpack too and flies right up behind you. When the fuel runs out you drop back to the tracks with a few seconds of protection, and the chaser falls back.
-- **Jump boots (found on the tracks now and then):** 30 seconds of extra-high jumps, high enough to clear a train.
+- **Jump boots (found on the tracks now and then):** 30 seconds of extra-high jumps, high enough to clear a train. The runner wears big green spring boots while they last, and any coins you jump over are still collected. They flicker in the last 3 seconds.
 
 The game has an original electronic soundtrack generated in the browser, which picks up an extra lead line during the jetpack. Use the music button to turn it off, or the speaker button to mute everything.
 
