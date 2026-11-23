@@ -44,7 +44,7 @@ button{cursor:pointer}
 .pill small{font-family:var(--body);font-size:12px;color:var(--muted)}
 .pill.pow{font-size:14px;padding:6px 12px}
 .pill.pow b{font-weight:400;font-size:18px;min-width:1.4em;text-align:right}
-.pill.jet{background:rgb(255 106 85/.55)} .pill.boots{background:rgb(60 255 138/.35)}
+.pill.jet{background:rgb(255 106 85/.55)} .pill.boots{background:rgb(60 255 138/.35)} .pill.mag{background:rgb(229 53 43/.45)}
 .pill.has{box-shadow:0 0 0 2px rgb(56 240 255/.55),0 0 18px rgb(56 240 255/.35)}
 .hbtn{pointer-events:auto;width:40px;height:40px;border-radius:12px;border:0;background:rgb(10 8 30/.45);display:grid;place-items:center}
 .hbtn svg{width:20px;height:20px}
@@ -107,7 +107,8 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 <div class="hud" id="hud" hidden>
   <div class="left"><div class="score" id="score">0</div><div class="best" id="bestHud"></div><div class="best" id="jetNext"></div>
     <div class="pill pow jet" id="jetHud" hidden>Jetpack <b id="jetTime">30</b></div>
-    <div class="pill pow boots" id="bootHud" hidden>Boots <b id="bootTime">30</b></div></div>
+    <div class="pill pow boots" id="bootHud" hidden>Boots <b id="bootTime">30</b></div>
+    <div class="pill pow mag" id="magHud" hidden>Magnet <b id="magTime">30</b></div></div>
   <div class="right">
     <div class="pill" id="boardHud" aria-label="Hoverboards"><svg viewBox="0 0 28 16" aria-hidden="true"><ellipse cx="14" cy="13" rx="12" ry="2.5" fill="#38f0ff" opacity=".45"/><rect x="1" y="5" width="26" height="5" rx="2.5" fill="#1b1840" stroke="#38f0ff" stroke-width="1.4"/></svg><span id="boardCount">0</span><small id="boardNext">0/100</small></div>
     <div class="pill"><i></i><span id="coinCount">0</span></div>
@@ -143,9 +144,9 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
       <div><b>↓</b>Swipe down to slide</div>
       <div><b>◎</b>Tap to throw the boomerang</div>
       <div><b>⟋</b>Run up ramps onto trains</div>
-      <div><b>⇈</b>Jump boots: extra-high jumps</div>
+      <div><b>⇈</b>Boots jump high; magnets pull in coins</div>
       <div><b>▭</b>100 coins = a hoverboard (extra life)</div>
-      <div><b>▲</b>500 coins = a 30-second jetpack</div>
+      <div><b>▲</b>500 coins = an 18-second jetpack</div>
     </div>
     <p class="err" id="loadErr" hidden>The 3D engine couldn't load. Check your connection and reload the page.</p>
     <button class="big" id="playBtn">Run!</button>
@@ -651,6 +652,20 @@ function makeBoots() {
   halo.scale.set(1.8, 1.8, 1); halo.position.y = 0.3; g.add(halo);
   return g;
 }
+const magRed = new THREE.MeshStandardMaterial({ color: 0xe5352b, roughness: 0.35, metalness: 0.3, emissive: 0x5a0c08, emissiveIntensity: 0.5 });
+function makeMagnet(withHalo = true) {
+  const g = new THREE.Group();
+  const arc = addMesh(g, new THREE.TorusGeometry(0.26, 0.095, 12, 28, Math.PI), magRed, 0, 0.12, 0);
+  for (const s of [-1, 1]) {
+    addMesh(g, new THREE.CylinderGeometry(0.095, 0.095, 0.26, 16), magRed, s * 0.26, -0.01, 0);
+    addMesh(g, new THREE.CylinderGeometry(0.097, 0.097, 0.12, 16), springMat, s * 0.26, -0.2, 0);
+  }
+  if (withHalo) {
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff6a55, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.75, depthWrite: false }));
+    halo.scale.set(1.7, 1.7, 1); g.add(halo);
+  }
+  return g;
+}
 function makeJetpack() {
   const g = new THREE.Group();
   const tankMat = new THREE.MeshStandardMaterial({ color: 0xd9dbe8, metalness: 0.85, roughness: 0.25 });
@@ -751,6 +766,9 @@ const runner = makeHuman(RUNNER_PAL, faces.runner);
 const chaserH = makeHuman(CHASER_PAL, faces.chaser);
 runner.root.scale.setScalar(1.12); chaserH.root.scale.setScalar(1.16);
 const runnerJet = makeJetpack(), chaserJet = makeJetpack();
+const heldMagnet = makeMagnet(false); heldMagnet.scale.setScalar(0.7); heldMagnet.visible = false; scene.add(heldMagnet);
+const magnetGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff6a55, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.6, depthWrite: false }));
+magnetGlow.scale.set(1.1, 1.1, 1); heldMagnet.add(magnetGlow);
 const wornBoots = [];
 const bootTrim = new THREE.MeshStandardMaterial({ color: 0x0f3b2a, roughness: 0.5 });
 const bootSole = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x3cff8a, emissiveIntensity: 0.5, roughness: 0.4 });
@@ -838,7 +856,7 @@ const boomTrail = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, colo
 boomTrail.scale.set(1.4, 1.4, 1); scene.add(boomTrail);
 
 /* ================= game state ================= */
-const world = { dist: 0, speed: 10, t: 0, coins: 0, boards: 0, bonus: 0 };
+const world = { dist: 0, speed: 10, t: 0, coins: 0, boards: 0, bonus: 0, jetProg: 0 };
 let obstacles = [], coins = [], nextRow = 0, laneBusy = [0, 0, 0];
 const player = { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0, shield: 0, throwT: 0, floor: 0, jet: 0, boots: 0 };
 const sky = { next: 0, lane: 0 };
@@ -855,8 +873,8 @@ function clearTrack() {
 }
 function reset(forPlay) {
   clearTrack();
-  Object.assign(world, { dist: world.dist, speed: forPlay ? 15 : 10, t: 0, coins: 0, boards: 0, bonus: 0 });
-  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, inv: 0, shield: 0, throwT: 0, floor: 0, jet: 0, boots: 0 });
+  Object.assign(world, { dist: world.dist, speed: forPlay ? 15 : 10, t: 0, coins: 0, boards: 0, bonus: 0, jetProg: 0 });
+  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, inv: 0, shield: 0, throwT: 0, floor: 0, jet: 0, boots: 0, magnet: 0 });
   Object.assign(chaser, { z: forPlay ? 2.6 : 14, x: 1.2, y: 0, timer: forPlay ? 2.6 : 0 });
   if (B.state !== "held") boomHeld();
   Object.assign(B, { state: "held", cool: 0 }); hudCool = -1;
@@ -890,14 +908,15 @@ function spawnRow(wz) {
     }
   }
   // jump boots: rare, in a lane with nothing in it
-  if (!easy && player.boots <= 0 && player.jet <= 0 && !powers.length && Math.random() < 0.06) {
+  const kinds = [player.boots <= 0 && "boots", player.magnet <= 0 && "magnet"].filter(Boolean);
+  if (!easy && kinds.length && player.jet <= 0 && !powers.length && Math.random() < 0.09) {
     const free = [-1, 0, 1].filter(l => !used.has(l) && laneBusy[l + 1] < wz + 6);
-    if (free.length) addPower(free[Math.floor(Math.random() * free.length)], wz + 5);
+    if (free.length) addPower(free[Math.floor(Math.random() * free.length)], wz + 5, kinds[Math.floor(Math.random() * kinds.length)]);
   }
 }
 function addObstacle(o) { o.mesh.position.x = o.lane * LANE; scene.add(o.mesh); obstacles.push(o); placeObstacle(o); }
 function placeObstacle(o) { const z = o.wz - world.dist; o.mesh.position.z = -(z + (o.t === "block" || o.t === "ramp" ? o.len / 2 : 0.15)); }
-function addPower(lane, wz) { const m = makeBoots(); m.position.set(lane * LANE, 0.55, 0); scene.add(m); powers.push({ type: "boots", lane, wz, mesh: m }); }
+function addPower(lane, wz, type = "boots") { const m = type === "magnet" ? makeMagnet() : makeBoots(); m.position.set(lane * LANE, 0.55, 0); scene.add(m); powers.push({ type, lane, wz, mesh: m }); }
 // height of whatever the runner is standing on: ground, a ramp, or a train roof
 function floorAt(px, py) {
   let f = 0;
@@ -950,6 +969,7 @@ function update(dt) {
     player.floor = floor;
   }
   if (player.boots > 0) { player.boots -= dt; if (player.boots <= 0) { player.boots = 0; note("Jump boots wore off"); } }
+  if (player.magnet > 0) { player.magnet -= dt; if (player.magnet <= 0) { player.magnet = 0; note("Magnet wore off"); } }
   player.slide = Math.max(0, player.slide - dt);
   player.inv = Math.max(0, player.inv - dt);
   player.shield = Math.max(0, player.shield - dt);
@@ -981,9 +1001,18 @@ function update(dt) {
       if (player.inv <= 0 && stumble(o)) break;
     }
   }
+  const magnetOn = playing && player.magnet > 0;
   for (let i = coins.length - 1; i >= 0; i--) {
     const c = coins[i], z = c.wz - world.dist;
+    if (c.pull) {
+      // flying toward the runner: positions are relative to the runner, so the world moving doesn't matter
+      const tx = player.x, ty = player.y + 1.1, dx = tx - c.px, dy = ty - c.py, dz = -c.pz, d = Math.hypot(dx, dy, dz), step = (world.speed + 22) * dt;
+      if (d < 0.55 || d < step) { collectCoin(i); continue; }
+      c.px += dx / d * step; c.py += dy / d * step; c.pz += dz / d * step;
+      continue;
+    }
     if (z < -3) { scene.remove(c.mesh); coins.splice(i, 1); continue; }
+    if (magnetOn && z > -1 && z < 14 && Math.abs(c.y - (player.y + 1)) < 4.5) { c.pull = true; c.px = c.lane * LANE; c.py = c.y; c.pz = z; continue; }
     const reach = player.boots > 0 ? c.y <= player.y + 2.2 : Math.abs(c.y - (player.y + 0.9)) < 1.15;
     if (playing && Math.abs(z) < 0.7 && Math.abs(c.lane * LANE - player.x) < 0.8 && reach) { collectCoin(i); }
   }
@@ -991,9 +1020,9 @@ function update(dt) {
     const pw = powers[i], z = pw.wz - world.dist;
     if (z < -3) { scene.remove(pw.mesh); powers.splice(i, 1); continue; }
     if (playing && Math.abs(z) < 0.8 && Math.abs(pw.lane * LANE - player.x) < 0.9 && player.y - player.floor < 2.2) {
-      scene.remove(pw.mesh); powers.splice(i, 1);
-      player.boots = BOOT_TIME; sfx.board(); burst(player.x, 0.6, 0, [0x3cff8a, 0xffffff], 16, 4);
-      note("Jump boots! Extra-high jumps for 30 seconds");
+      scene.remove(pw.mesh); powers.splice(i, 1); sfx.board();
+      if (pw.type === "magnet") { player.magnet = MAGNET_TIME; burst(player.x, 1, 0, [0xe5352b, 0xffffff], 16, 4); note("Coin magnet! 30 seconds"); }
+      else { player.boots = BOOT_TIME; burst(player.x, 0.6, 0, [0x3cff8a, 0xffffff], 16, 4); note("Jump boots! Extra-high jumps for 30 seconds"); }
     }
   }
   for (const o of obstacles) if (!o.dead && o.wz + o.len - world.dist < -9) removeObstacle(o);
@@ -1005,7 +1034,7 @@ function collectCoin(i) {
   const c = coins[i]; scene.remove(c.mesh); coins.splice(i, 1);
   world.coins++; sfx.coin(); $("#coinCount").textContent = world.coins;
   if (world.coins % BOARD_COST === 0) gainBoard();
-  if (world.coins % JET_COST === 0) gainJet();
+  if (player.jet <= 0 && ++world.jetProg >= JET_COST) { world.jetProg = 0; gainJet(); }
   hudBoards();
 }
 const score = () => Math.floor((world.dist - startDist) / 2) + world.coins * 5 + world.bonus;
@@ -1023,17 +1052,18 @@ function crash(o) {
 }
 
 /* ---------- hoverboards: every 26 coins is an extra life ---------- */
-const BOARD_COST = 100, BOARD_MAX = 3, JET_COST = 500, JET_TIME = 30, JET_ALT = 6.4, BOOT_TIME = 30;
+const BOARD_COST = 100, BOARD_MAX = 3, JET_COST = 500, JET_TIME = 18, JET_ALT = 6.4, BOOT_TIME = 30, MAGNET_TIME = 30;
 function hudBoards() {
   $("#boardCount").textContent = world.boards;
   $("#boardNext").textContent = `${world.coins % BOARD_COST}/${BOARD_COST}`;
   $("#boardHud").classList.toggle("has", world.boards > 0);
   $("#coinCount").textContent = world.coins;
-  $("#jetNext").textContent = `${JET_COST - world.coins % JET_COST} coins to jetpack`;
+  $("#jetNext").textContent = player.jet > 0 ? "" : `${JET_COST - world.jetProg} coins to jetpack`;
 }
-let hudJ = -1, hudB = -1;
+let hudJ = -1, hudB = -1, hudM = -1;
 function hudPowers() {
-  const j = Math.ceil(player.jet), b = Math.ceil(player.boots);
+  const j = Math.ceil(player.jet), b = Math.ceil(player.boots), m = Math.ceil(player.magnet);
+  if (m !== hudM) { hudM = m; $("#magHud").hidden = m <= 0; $("#magTime").textContent = m; }
   if (j !== hudJ) { hudJ = j; $("#jetHud").hidden = j <= 0; $("#jetTime").textContent = j; }
   if (b !== hudB) { hudB = b; $("#bootHud").hidden = b <= 0; $("#bootTime").textContent = b; }
 }
@@ -1045,13 +1075,13 @@ function gainJet() {
   const cn = nameOf("chaser");
   note(cn ? `Jetpack! ${cn} has one too!` : "Jetpack! The chaser has one too!");
   [392, 523, 659, 784, 1047].forEach((f, i) => blip(f, 0.14, "sawtooth", 0.05, 0, i * 0.06)); noise(0.8, 0.1, 900);
-  hudPowers();
+  hudPowers(); hudBoards();
 }
 function endJet() {
   player.jet = 0; player.vy = 0; player.shield = 3; player.inv = 3;
   for (const o of obstacles) { const z0 = o.wz - world.dist; if (z0 < 8 && z0 + o.len > -2) removeObstacle(o); }
   note("Jetpack's out of fuel. Heads up!"); noise(0.4, 0.08, 500);
-  hudPowers();
+  hudPowers(); hudBoards();
 }
 function gainBoard() {
   if (world.boards >= BOARD_MAX) { world.bonus += 50; note("3 hoverboards is the max. +50 points"); sfx.catchIt(); return; }
@@ -1143,7 +1173,7 @@ const camLook = new THREE.Vector3();
 function render(dt) {
   updateScenery(world.dist);
   for (const o of obstacles) { placeObstacle(o); if (o.t === "gate") { const on = Math.floor(world.t * 3) % 2; o.mesh.userData.lights.forEach((l, i) => l.visible = (i + on) % 2 === 0); } }
-  for (const c of coins) { c.mesh.position.z = -(c.wz - world.dist); c.mesh.rotation.y = world.t * 3.2 + c.wz; }
+  for (const c of coins) { if (c.pull) c.mesh.position.set(c.px, c.py, -c.pz); else c.mesh.position.z = -(c.wz - world.dist); c.mesh.rotation.y = world.t * 3.2 + c.wz; }
   for (const pw of powers) { pw.mesh.position.z = -(pw.wz - world.dist); pw.mesh.rotation.y = world.t * 2; pw.mesh.position.y = 0.45 + Math.sin(world.t * 4) * 0.12; }
   updateParts(dt, mode === "over" ? 0 : 0);
 
@@ -1158,6 +1188,13 @@ function render(dt) {
   const booted = player.boots > 0 && player.jet <= 0;
   const bootFlash = player.boots > 0 && player.boots < 3 && Math.floor(world.t * 8) % 2; // flicker in the last 3 seconds
   wornBoots.forEach(b => b.visible = booted && !bootFlash);
+  const magFlash = player.magnet > 0 && player.magnet < 3 && Math.floor(world.t * 8) % 2;
+  heldMagnet.visible = player.magnet > 0 && mode === "play" && !magFlash;
+  if (heldMagnet.visible) {
+    heldMagnet.position.set(player.x + 0.75, player.y + 2.55 + Math.sin(world.t * 4) * 0.08, 0.1);
+    heldMagnet.rotation.set(0, Math.sin(world.t * 2) * 0.4, Math.PI + Math.sin(world.t * 3) * 0.15);
+    magnetGlow.material.opacity = 0.45 + Math.sin(world.t * 10) * 0.2;
+  }
   // raise the runner so the springs sit on the ground instead of sinking into it
   if (booted) runner.root.position.y += 0.36;
   if (mode === "over") st = "run";
