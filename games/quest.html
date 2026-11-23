@@ -261,9 +261,9 @@ const LEVELS = [
   { name: "Rooftop Run", build: () => makeLevel(150, a => {
     a.ground(0, 28); a.coins(6, 5, 9); a.block(11, 8, "B"); a.row(12, 15, 8); a.block(13, 8, "P"); a.slime(19);
     a.ground(31, 58); a.arc(27, 6, 9, 2); a.stairsUp(36, 3); a.coins(36, 3, 7); a.slime(43); a.slime(47); a.tower(52, 2); a.coins(52, 1, 8);
-    a.row(60, 64, 9, "="); a.coins(60, 4, 8); a.ground(66, 98); a.spikes(73, 76); a.arc(71, 7, 9, 3);
-    a.block(80, 8, "B"); a.block(81, 8, "P"); a.block(82, 8, "B"); a.row(80, 83, 4, "="); a.coins(80, 3, 3); a.slime(86); a.roller(93);
-    a.ground(101, 150); a.arc(97, 6, 9, 2); a.slime(108); a.slime(112); a.row(114, 118, 9, "="); a.coins(114, 4, 8);
+    a.row(60, 64, 10, "="); a.coins(60, 4, 9); a.ground(66, 98); a.spikes(73, 76); a.arc(71, 7, 9, 3);
+    a.block(80, 8, "B"); a.block(81, 8, "P"); a.block(82, 8, "B"); a.row(80, 83, 6, "="); a.coins(80, 3, 5); a.slime(86); a.roller(93);
+    a.ground(101, 150); a.arc(97, 6, 9, 2); a.slime(108); a.slime(112); a.row(114, 118, 10, "="); a.coins(114, 4, 9);
     a.stairsUp(126, 4); a.coins(126, 4, 6); a.stairsDown(132, 3); a.door(142);
   }) },
   { name: "Neon Gaps", build: () => makeLevel(170, a => {
@@ -271,7 +271,7 @@ const LEVELS = [
     a.mover(22, 10, 3, 5, 2); a.coins(22, 8, 8); a.ground(32, 52); a.roller(40); a.row(43, 47, 8); a.block(45, 8, "P"); a.coins(43, 4, 7);
     a.spikes(48, 50); a.ground(55, 62); a.arc(51, 5, 9, 2); a.tower(58, 2); a.slime(60, 11);
     a.mover(64, 9, 3, 0, 1.8, true); a.coins(64, 3, 5); a.ground(70, 100); a.slime(74); a.slime(78); a.slime(82);
-    a.row(85, 92, 8, "="); a.coins(85, 7, 7); a.spikes(86, 92); a.roller(96);
+    a.row(85, 92, 10, "="); a.coins(85, 7, 9); a.spikes(86, 92); a.roller(96);
     a.mover(102, 10, 2, 6, 2.6); a.mover(112, 8, 2, 6, 2.6); a.coins(104, 12, 6);
     a.ground(122, 170); a.stairsUp(128, 4); a.tower(132, 4); a.tower(133, 4); a.slime(133, 7); a.stairsDown(134, 4); a.roller(146);
     a.block(150, 8, "P"); a.block(151, 8, "B"); a.door(160);
@@ -284,7 +284,7 @@ const LEVELS = [
     a.mover(82, 9, 2, 0, 2.2, true); a.mover(87, 7, 2, 0, 2.2, true); a.coins(87, 2, 3);
     a.ground(92, 120); a.stairsUp(95, 5); a.row(100, 108, 7); a.coins(100, 8, 6); a.slime(103, 6); a.roller(112); a.roller(116);
     a.mover(122, 10, 2, 8, 3.2); a.spikes(122, 134, 13); a.ground(134, 150); a.slime(140); a.slime(144);
-    a.row(152, 156, 9, "="); a.row(159, 163, 7, "="); a.coins(152, 4, 8); a.coins(159, 4, 6);
+    a.row(152, 156, 10, "="); a.row(159, 163, 9, "="); a.coins(152, 4, 9); a.coins(159, 4, 8);
     a.ground(165, 190); a.block(168, 8, "B"); a.block(169, 8, "P"); a.block(170, 8, "L"); a.roller(176); a.stairsUp(178, 4); a.door(185);
   }) },
 ];
@@ -414,7 +414,7 @@ function update(dt) {
   P.vx = Math.max(-maxV, Math.min(maxV, P.vx));
   P.coyote = P.onGround ? 0.1 : Math.max(0, P.coyote - dt);
   const buffered = performance.now() - jumpPressedAt < 130;
-  if (buffered && (P.onGround || P.coyote > 0)) { P.vy = -14.6; P.onGround = false; P.coyote = 0; jumpPressedAt = -1; sfx.jump(); P.squash = -0.25; }
+  if (buffered && (P.onGround || P.coyote > 0)) { P.vy = -15.6; P.onGround = false; P.coyote = 0; jumpPressedAt = -1; sfx.jump(); P.squash = -0.25; }
   if (!jumpHeld && P.vy < -5.5) P.vy = -5.5;                   // release early for a short hop
   P.vy = Math.min(18, P.vy + 38 * dt);
   // ride a moving platform
