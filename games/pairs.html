@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chaim Rush</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chaim Rush">
+<meta name="theme-color" content="#16133a">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: top bar, stats row, then a square 4x4 board sized to the screen; win card floats over it. */
+:root{color-scheme:dark;--night:#16133a;--panel:#221d52;--panel2:#2d2768;--ink:#fff6ea;--muted:#b8b1e8;--coral:#ff6a55;--gold:#ffc93c;--teal:#2ec4b6;
+  --display:"Bungee",Impact,"Arial Black",sans-serif;--body:"Rubik",system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--night)}
+body{margin:0;min-height:100vh;background:radial-gradient(120% 60% at 50% 0%,#3b2a6e 0%,var(--night) 60%);color:var(--ink);font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:520px;margin:0 auto;padding-block:12px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.top a{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);background:var(--panel2);border-radius:999px;padding:8px 14px 8px 10px;font-size:14px;font-weight:500}
+.top a svg{width:16px;height:16px}
+h1{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.stats div{background:var(--panel);border-radius:12px;padding:8px 4px}
+.stats b{display:block;font-family:var(--display);font-weight:400;font-size:22px;font-variant-numeric:tabular-nums}
+.stats span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:min(100%,calc(100vh - 260px));margin:0 auto;aspect-ratio:1;max-width:100%}
+.tile{position:relative;border:0;padding:0;background:none;cursor:pointer;perspective:600px;border-radius:14px}
+.tile .in{position:absolute;inset:0;transition:transform .35s cubic-bezier(.3,.7,.3,1.2);transform-style:preserve-3d}
+.tile.up .in,.tile.done .in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:grid;place-items:center}
+.back{background:linear-gradient(135deg,#3b3482,#2d2768);box-shadow:inset 0 0 0 2px rgb(255 255 255/.08)}
+.back::after{content:"";width:34%;height:34%;border-radius:50%;border:3px solid rgb(255 201 60/.35)}
+.front{background:#fff6ea;transform:rotateY(180deg)}
+.front svg{width:66%;height:66%}
+.tile.done .front{box-shadow:0 0 0 3px var(--gold),0 0 18px rgb(255 201 60/.5)}
+.tile.miss .front{animation:shake .35s}
+@keyframes shake{25%{transform:rotateY(180deg) translateX(-5px)}75%{transform:rotateY(180deg) translateX(5px)}}
+.row{display:flex;gap:10px;justify-content:center}
+.btn{border:0;border-radius:14px;background:var(--panel2);color:var(--ink);font-weight:700;padding:12px 18px;font-size:15px;cursor:pointer}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgb(14 11 38/.65);padding:16px}
+.card{background:var(--panel);border-radius:22px;padding:22px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;text-align:center;box-shadow:0 18px 40px rgb(0 0 0/.4)}
+.card h2{font-family:var(--display);font-weight:400;font-size:34px;margin:0}
+.card p{margin:0;color:var(--muted)}
+.big{border:0;border-radius:16px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:22px;padding:14px;box-shadow:0 5px 0 #b8402f;cursor:pointer}
+.card a{color:var(--muted);font-size:14px}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.tile .in{transition:none}.tile.miss .front{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>Games</a><h1>Pair Up</h1></div>
+  <div class="stats">
+    <div><b id="moves">0</b><span>Moves</span></div>
+    <div><b id="time">0:00</b><span>Time</span></div>
+    <div><b id="best">–</b><span>Best moves</span></div>
+  </div>
+  <div class="board" id="board" role="grid" aria-label="Memory tiles"></div>
+  <div class="row"><button class="btn" id="restart">New game</button></div>
+</div>
+<div class="screen" id="win" hidden>
+  <div class="card">
+    <h2 id="winTitle">All matched!</h2>
+    <p id="winText"></p>
+    <button class="big" id="again">Play again</button>
+    <a href="./">Back to games</a>
+  </div>
+</div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const store = { get: k => { try { return localStorage.getItem("chaimgames:" + k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem("chaimgames:" + k, v); } catch {} } };
+const SHAPES = [
+  '<circle cx="50" cy="50" r="38" fill="#ff6a55"/>',
+  '<rect x="16" y="16" width="68" height="68" rx="10" fill="#2ec4b6"/>',
+  '<path d="M50 10 L90 86 H10Z" fill="#ffc93c"/>',
+  '<path d="M50 6 L61 38 L95 38 L67 58 L78 92 L50 72 L22 92 L33 58 L5 38 L39 38Z" fill="#a46ae0"/>',
+  '<path d="M50 6 L90 50 L50 94 L10 50Z" fill="#38a8d8"/>',
+  '<path d="M50 88 C10 60 6 30 28 20 C40 14 50 24 50 32 C50 24 60 14 72 20 C94 30 90 60 50 88Z" fill="#e8577a"/>',
+  '<path d="M50 8 L86 29 V71 L50 92 L14 71 V29Z" fill="#5fc46a"/>',
+  '<path d="M38 10 H62 V38 H90 V62 H62 V90 H38 V62 H10 V38 H38Z" fill="#3b3482"/>',
+];
+let first = null, lock = false, moves = 0, matched = 0, t0 = 0, timer = null, started = false, actx = null;
+let best = +(store.get("pairs") || 0);
+$("#best").textContent = best || "–";
+function beep(f, d = 0.08, type = "triangle", v = 0.05) { if (!actx) return; const t = actx.currentTime, o = actx.createOscillator(), a = actx.createGain(); o.type = type; o.frequency.value = f; a.gain.setValueAtTime(v, t); a.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(a).connect(actx.destination); o.start(t); o.stop(t + d + 0.02); }
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+function deal() {
+  clearInterval(timer); started = false; first = null; lock = false; moves = 0; matched = 0;
+  $("#moves").textContent = 0; $("#time").textContent = "0:00"; $("#win").hidden = true;
+  const deck = [...SHAPES.keys(), ...SHAPES.keys()].sort(() => Math.random() - 0.5);
+  const b = $("#board"); b.innerHTML = "";
+  deck.forEach((k, i) => {
+    const t = document.createElement("button"); t.className = "tile"; t.dataset.k = k; t.setAttribute("aria-label", `Tile ${i + 1}, face down`);
+    t.innerHTML = `<span class="in"><span class="face back"></span><span class="face front"><svg viewBox="0 0 100 100">${SHAPES[k]}</svg></span></span>`;
+    t.onclick = () => flip(t); b.appendChild(t);
+  });
+}
+function flip(t) {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} } actx?.resume?.();
+  if (lock || t === first || t.classList.contains("done")) return;
+  if (!started) { started = true; t0 = performance.now(); timer = setInterval(() => $("#time").textContent = fmt((performance.now() - t0) / 1000), 250); }
+  t.classList.add("up"); t.setAttribute("aria-label", "Tile, face up"); beep(520, 0.05);
+  if (!first) { first = t; return; }
+  moves++; $("#moves").textContent = moves;
+  if (first.dataset.k === t.dataset.k) {
+    [first, t].forEach(x => { x.classList.add("done"); x.setAttribute("aria-label", "Matched"); });
+    first = null; matched++; beep(880, 0.12); setTimeout(() => beep(1175, 0.14), 90);
+    if (matched === SHAPES.length) win();
+  } else {
+    lock = true; const a = first; first = null;
+    setTimeout(() => { [a, t].forEach(x => x.classList.add("miss")); beep(200, 0.12, "sawtooth", 0.03); }, 350);
+    setTimeout(() => { [a, t].forEach(x => { x.classList.remove("up", "miss"); x.setAttribute("aria-label", "Tile, face down"); }); lock = false; }, 950);
+  }
+}
+function win() {
+  clearInterval(timer);
+  const secs = (performance.now() - t0) / 1000, isBest = !best || moves < best;
+  if (isBest) { best = moves; store.set("pairs", String(best)); $("#best").textContent = best; }
+  $("#winTitle").textContent = isBest ? "New best!" : "All matched!";
+  $("#winText").textContent = `${moves} moves in ${fmt(secs)}. Your best is ${best} moves.`;
+  setTimeout(() => $("#win").hidden = false, 600);
+}
+$("#restart").onclick = deal; $("#again").onclick = deal;
+deal();
+})();
+</script>
+</body>
+</html>

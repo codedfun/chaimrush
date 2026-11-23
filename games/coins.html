@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chaim Rush</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chaim Rush">
+<meta name="theme-color" content="#16133a">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: full-screen canvas with a top bar (back, score, lives) and start/game-over cards. */
+:root{color-scheme:dark;--night:#16133a;--panel:#221d52;--panel2:#2d2768;--ink:#fff6ea;--muted:#b8b1e8;--coral:#ff6a55;--gold:#ffc93c;--teal:#2ec4b6;
+  --display:"Bungee",Impact,"Arial Black",sans-serif;--body:"Rubik",system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var(--ink);font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.bar{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+.bar a{pointer-events:auto;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);background:rgb(10 8 30/.5);border-radius:999px;padding:8px 14px 8px 10px;font-size:14px;font-weight:500}
+.bar a svg{width:16px;height:16px}
+.hud{display:flex;gap:10px;align-items:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.hud .lives{color:var(--coral);letter-spacing:2px}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgb(14 11 38/.6);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.card{background:var(--panel);border-radius:22px;padding:22px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;text-align:center;box-shadow:0 18px 40px rgb(0 0 0/.4)}
+.card h1{font-family:var(--display);font-weight:400;font-size:38px;margin:0;line-height:1}
+.card p{margin:0;color:var(--muted);line-height:1.45}
+.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:13px;color:var(--muted)}
+.legend div{background:var(--panel2);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.legend i{width:22px;height:22px;border-radius:50%;display:block}
+.card .big{border:0;border-radius:16px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:22px;padding:14px;box-shadow:0 5px 0 #b8402f;cursor:pointer}
+.card .big:active{transform:translateY(3px);box-shadow:0 2px 0 #b8402f}
+.card .ghost{color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:14px}
+.stat{font-family:var(--display);font-size:20px}
+.stat span{color:var(--gold)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="Coin Storm game"></canvas>
+<div class="bar"><a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>Games</a><div class="hud"><span id="score">0</span><span class="lives" id="lives" aria-label="Lives">●●●</span></div></div>
+<div class="screen" id="start">
+  <div class="card">
+    <h1>Coin Storm</h1>
+    <p>Drag anywhere to slide your basket. Catch what's good, dodge the bombs. It gets faster as you go.</p>
+    <div class="legend">
+      <div><i style="background:radial-gradient(circle at 35% 35%,#fff1a8,#ffc93c 60%,#c98a10)"></i>Coin +1</div>
+      <div><i style="background:radial-gradient(circle at 35% 35%,#e8ffff,#38f0ff 60%,#1a8aa8);border-radius:4px;transform:rotate(45deg) scale(.8)"></i>Gem +5</div>
+      <div><i style="background:#2a2640;box-shadow:inset 0 0 0 3px #ff6a55"></i>Bomb −1 life</div>
+    </div>
+    <div class="stat" id="bestStart"></div>
+    <button class="big" id="go">Start</button>
+  </div>
+</div>
+<div class="screen" id="over" hidden>
+  <div class="card">
+    <h1 id="overTitle">Out of lives</h1>
+    <div class="stat">Score <span id="final">0</span></div>
+    <div class="stat">Best <span id="best">0</span></div>
+    <button class="big" id="again">Play again</button>
+    <a class="ghost" href="./">Back to games</a>
+  </div>
+</div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const store = { get: k => { try { return localStorage.getItem("chaimgames:" + k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem("chaimgames:" + k, v); } catch {} } };
+const cv = $("#cv"), g = cv.getContext("2d");
+let W, H, dpr, U;
+function resize() { dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); U = Math.min(W, 560) / 10; }
+addEventListener("resize", resize); resize();
+let best = +(store.get("coins") || 0);
+if (best) $("#bestStart").innerHTML = `Best <span>${best}</span>`;
+let state = "menu", items = [], pops = [], basket = { x: 0, tx: 0, squash: 0 }, score = 0, lives = 3, time = 0, spawnT = 0, hurt = 0, t0 = 0, actx = null;
+function beep(f, d = 0.08, type = "square", v = 0.04, slide = 0) { if (!actx) return; const t = actx.currentTime, o = actx.createOscillator(), a = actx.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(f * slide, t + d); a.gain.setValueAtTime(v, t); a.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(a).connect(actx.destination); o.start(t); o.stop(t + d + 0.02); }
+const groundY = () => H - Math.max(70, U * 1.8) - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sab")) || 0);
+function start() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} } actx?.resume?.();
+  items = []; pops = []; score = 0; lives = 3; time = 0; spawnT = 0.6; hurt = 0;
+  basket.x = basket.tx = W / 2;
+  $("#score").textContent = 0; $("#lives").textContent = "●●●";
+  $("#start").hidden = true; $("#over").hidden = true; state = "play";
+}
+$("#go").onclick = start; $("#again").onclick = start;
+const move = e => { if (state === "play") basket.tx = e.clientX; };
+cv.addEventListener("pointerdown", e => { e.preventDefault(); move(e); });
+cv.addEventListener("pointermove", move);
+addEventListener("keydown", e => { if (state !== "play") return; if (e.key === "ArrowLeft") basket.tx -= U * 1.5; if (e.key === "ArrowRight") basket.tx += U * 1.5; });
+
+function spawn() {
+  const r = Math.random(), lvl = Math.min(1, time / 90);
+  const type = r < 0.2 + lvl * 0.2 ? "bomb" : r < 0.27 + lvl * 0.2 ? "gem" : "coin";
+  items.push({ type, x: U * 0.6 + Math.random() * (W - U * 1.2), y: -U, vy: U * (3 + lvl * 4 + Math.random() * 1.5), rot: Math.random() * 6, spin: (Math.random() - 0.5) * 6 });
+}
+function end() {
+  state = "over"; beep(120, 0.5, "sawtooth", 0.07, 0.5);
+  const isBest = score > best; if (isBest) { best = score; store.set("coins", String(best)); }
+  setTimeout(() => { $("#overTitle").textContent = isBest && score > 0 ? "New best!" : "Out of lives"; $("#final").textContent = score; $("#best").textContent = best; $("#over").hidden = false; }, 600);
+}
+function drawCoin(x, y, r, rot) {
+  const w = Math.max(0.2, Math.abs(Math.cos(rot))) * r;
+  g.fillStyle = "#c98a10"; g.beginPath(); g.ellipse(x, y, w, r, 0, 0, 7); g.fill();
+  g.fillStyle = "#ffc93c"; g.beginPath(); g.ellipse(x, y, w * 0.8, r * 0.8, 0, 0, 7); g.fill();
+  g.fillStyle = "rgba(255,255,255,.5)"; g.beginPath(); g.ellipse(x - w * 0.25, y - r * 0.3, w * 0.2, r * 0.25, 0, 0, 7); g.fill();
+}
+function drawGem(x, y, r, rot) {
+  g.save(); g.translate(x, y); g.rotate(Math.sin(rot) * 0.3);
+  g.fillStyle = "#1a8aa8"; g.beginPath(); g.moveTo(0, -r); g.lineTo(r * 0.8, 0); g.lineTo(0, r); g.lineTo(-r * 0.8, 0); g.fill();
+  g.fillStyle = "#38f0ff"; g.beginPath(); g.moveTo(0, -r); g.lineTo(r * 0.8, 0); g.lineTo(0, r * 0.2); g.lineTo(-r * 0.8, 0); g.fill();
+  g.fillStyle = "rgba(255,255,255,.7)"; g.beginPath(); g.moveTo(0, -r); g.lineTo(-r * 0.3, -r * 0.2); g.lineTo(0, -r * 0.1); g.fill();
+  g.restore();
+}
+function drawBomb(x, y, r, t) {
+  g.fillStyle = "#2a2640"; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  g.strokeStyle = "#ff6a55"; g.lineWidth = r * 0.18; g.beginPath(); g.arc(x, y, r * 0.82, 0, 7); g.stroke();
+  g.strokeStyle = "#8a86a8"; g.lineWidth = r * 0.12; g.beginPath(); g.moveTo(x + r * 0.5, y - r * 0.7); g.quadraticCurveTo(x + r * 0.9, y - r * 1.3, x + r * 0.4, y - r * 1.5); g.stroke();
+  g.fillStyle = Math.floor(t * 12) % 2 ? "#ffc93c" : "#ff6a55"; g.beginPath(); g.arc(x + r * 0.4, y - r * 1.5, r * 0.22, 0, 7); g.fill();
+}
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - t0) / 1000 || 0); t0 = ts;
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#120f36"); sky.addColorStop(0.7, "#3b2a6e"); sky.addColorStop(1, "#a24a7c");
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  if (hurt > 0) { g.fillStyle = `rgba(255,60,40,${hurt * 0.35})`; g.fillRect(0, 0, W, H); hurt = Math.max(0, hurt - dt * 2); }
+  const gy = groundY();
+  g.fillStyle = "#2a2160"; g.fillRect(0, gy + U * 0.6, W, H);
+  if (state === "play") {
+    time += dt; spawnT -= dt;
+    if (spawnT <= 0) { spawn(); spawnT = Math.max(0.28, 0.85 - time * 0.006) * (0.7 + Math.random() * 0.6); }
+  }
+  basket.x += (Math.max(U, Math.min(W - U, basket.tx)) - basket.x) * Math.min(1, dt * 18);
+  const bw = U * 1.6, bx = basket.x, by = gy;
+  for (const it of items) {
+    if (state === "play") { it.y += it.vy * dt; it.rot += it.spin * dt; }
+    const r = U * (it.type === "bomb" ? 0.42 : 0.36);
+    if (state === "play" && !it.done && it.y + r > by && it.y - r < by + U * 0.5 && Math.abs(it.x - bx) < bw / 2 + r * 0.4) {
+      it.done = true; basket.squash = 1;
+      if (it.type === "bomb") { lives--; hurt = 1; beep(90, 0.35, "sawtooth", 0.08, 0.5); $("#lives").textContent = "●".repeat(lives) + "○".repeat(3 - lives); pops.push({ x: it.x, y: by, txt: "Boom!", c: "#ff6a55", t: 1 }); if (lives <= 0) end(); }
+      else { const pts = it.type === "gem" ? 5 : 1; score += pts; $("#score").textContent = score; beep(it.type === "gem" ? 1320 : 990, 0.08); pops.push({ x: it.x, y: by - U * 0.4, txt: "+" + pts, c: it.type === "gem" ? "#38f0ff" : "#ffc93c", t: 1 }); }
+    }
+    if (it.done) continue;
+    if (it.type === "coin") drawCoin(it.x, it.y, r, it.rot); else if (it.type === "gem") drawGem(it.x, it.y, r, it.rot); else drawBomb(it.x, it.y, r, time);
+  }
+  items = items.filter(it => !it.done && it.y < H + U * 2);
+  // basket
+  basket.squash = Math.max(0, basket.squash - dt * 5);
+  const sq = 1 + basket.squash * 0.15;
+  g.save(); g.translate(bx, by); g.scale(sq, 2 - sq);
+  g.fillStyle = "#c84632"; g.beginPath(); g.moveTo(-bw / 2, 0); g.lineTo(bw / 2, 0); g.lineTo(bw * 0.38, U * 0.6); g.lineTo(-bw * 0.38, U * 0.6); g.fill();
+  g.fillStyle = "#ff6a55"; g.beginPath(); g.moveTo(-bw / 2, 0); g.lineTo(bw / 2, 0); g.lineTo(bw * 0.44, U * 0.3); g.lineTo(-bw * 0.44, U * 0.3); g.fill();
+  g.strokeStyle = "#fff6ea"; g.lineWidth = U * 0.12; g.lineCap = "round"; g.beginPath(); g.moveTo(-bw / 2, 0); g.lineTo(bw / 2, 0); g.stroke();
+  g.restore();
+  // score pops
+  g.font = `400 ${U * 0.5}px Bungee, Impact, sans-serif`; g.textAlign = "center";
+  for (const p of pops) { p.t -= dt * 1.4; p.y -= dt * U * 1.5; g.globalAlpha = Math.max(0, p.t); g.fillStyle = p.c; g.fillText(p.txt, p.x, p.y); }
+  g.globalAlpha = 1; pops = pops.filter(p => p.t > 0);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

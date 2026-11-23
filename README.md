@@ -35,6 +35,14 @@ On a computer, use the arrow keys (or WASD) to move, F or Enter to throw, B to r
 
 Tap **Add photo** on the start screen, then drag and zoom to fit the face in the circle. Photos are kept only on that phone and are never uploaded. The faces are wrapped onto 3D heads that turn toward the camera so they're always visible.
 
+## More games
+
+The **More games** button at the bottom of the start screen opens `games/`, a page of extra games under the Chaim Rush name. Best scores are saved on the phone.
+
+- **Sky Stack** (`games/stack.html`): tap to drop each sliding block; overhangs get sliced off. Three perfect drops in a row make the block grow back.
+- **Coin Storm** (`games/coins.html`): drag the basket to catch coins (+1) and gems (+5) and dodge bombs. Three lives, and it speeds up.
+- **Pair Up** (`games/pairs.html`): flip tiles to match all 8 pairs in as few moves as possible.
+
 ## Add it to your Home Screen
 
 On iPhone or iPad, open the game in Safari, tap **Share**, then **Add to Home Screen**. It appears as **Chaim Rush** with its own icon and opens full screen. The start screen shows these steps too (and Android's), and hides them once you're playing from the Home Screen.

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chaim Rush</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chaim Rush">
+<meta name="theme-color" content="#16133a">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: full-screen canvas; a top bar and the start/game-over card float over it. */
+:root{color-scheme:dark;--night:#16133a;--panel:#221d52;--panel2:#2d2768;--ink:#fff6ea;--muted:#b8b1e8;--coral:#ff6a55;--gold:#ffc93c;--teal:#2ec4b6;
+  --display:"Bungee",Impact,"Arial Black",sans-serif;--body:"Rubik",system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var(--ink);font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.bar{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+.bar a{pointer-events:auto;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);background:rgb(10 8 30/.5);border-radius:999px;padding:8px 14px 8px 10px;font-size:14px;font-weight:500}
+.bar a svg{width:16px;height:16px}
+.bar .t{font-family:var(--display);font-size:16px;color:var(--muted)}
+.score{position:fixed;left:0;right:0;top:calc(64px + env(safe-area-inset-top,0px));text-align:center;font-family:var(--display);font-size:64px;line-height:1;text-shadow:0 4px 12px rgb(0 0 0/.4);pointer-events:none;font-variant-numeric:tabular-nums}
+.combo{position:fixed;left:0;right:0;top:calc(136px + env(safe-area-inset-top,0px));text-align:center;font-family:var(--display);font-size:18px;color:var(--gold);pointer-events:none}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgb(14 11 38/.6);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.card{background:var(--panel);border-radius:22px;padding:22px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;text-align:center;box-shadow:0 18px 40px rgb(0 0 0/.4)}
+.card h1{font-family:var(--display);font-weight:400;font-size:38px;margin:0;line-height:1}
+.card p{margin:0;color:var(--muted);line-height:1.45}
+.card .big{border:0;border-radius:16px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:22px;padding:14px;box-shadow:0 5px 0 #b8402f;cursor:pointer}
+.card .big:active{transform:translateY(3px);box-shadow:0 2px 0 #b8402f}
+.card .ghost{color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:14px}
+.stat{font-family:var(--display);font-size:20px}
+.stat span{color:var(--gold)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="Sky Stack game"></canvas>
+<div class="bar"><a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>Games</a><span class="t">Sky Stack</span></div>
+<div class="score" id="score" hidden>0</div>
+<div class="combo" id="combo" hidden></div>
+<div class="screen" id="start">
+  <div class="card">
+    <h1>Sky Stack</h1>
+    <p>A block slides back and forth. Tap anywhere to drop it on the tower. Whatever hangs over the edge gets sliced off. Land it perfectly to keep it full size.</p>
+    <div class="stat" id="bestStart"></div>
+    <button class="big" id="go">Start stacking</button>
+  </div>
+</div>
+<div class="screen" id="over" hidden>
+  <div class="card">
+    <h1 id="overTitle">Toppled!</h1>
+    <div class="stat">Height <span id="final">0</span></div>
+    <div class="stat">Best <span id="best">0</span></div>
+    <button class="big" id="again">Stack again</button>
+    <a class="ghost" href="./">Back to games</a>
+  </div>
+</div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const store = { get: k => { try { return localStorage.getItem("chaimgames:" + k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem("chaimgames:" + k, v); } catch {} } };
+const cv = $("#cv"), g = cv.getContext("2d");
+let W, H, dpr, unit;
+function resize() { dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); unit = Math.min(W, 520) / 10; }
+addEventListener("resize", resize); resize();
+
+let blocks, cur, debris, camY, state = "menu", combo, best = +(store.get("stack") || 0), t0 = 0, actx = null;
+if (best) $("#bestStart").innerHTML = `Best <span>${best}</span>`;
+const BH = () => unit * 0.55;
+const color = i => `hsl(${(170 + i * 9) % 360} 70% ${58 - (i % 2) * 4}%)`;
+function beep(f, d = 0.08, type = "triangle", v = 0.06) { if (!actx) return; const t = actx.currentTime, o = actx.createOscillator(), a = actx.createGain(); o.type = type; o.frequency.value = f; a.gain.setValueAtTime(v, t); a.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(a).connect(actx.destination); o.start(t); o.stop(t + d + 0.02); }
+
+function reset() {
+  const w = unit * 6;
+  blocks = [{ x: (W - w) / 2, w, i: 0 }];
+  debris = []; camY = 0; combo = 0;
+  spawn();
+  $("#score").textContent = "0";
+}
+function spawn() {
+  const prev = blocks[blocks.length - 1], i = blocks.length, fromLeft = i % 2 === 1;
+  // start just inside the screen edge so the block arrives quickly
+  cur = { x: fromLeft ? -prev.w * 0.35 : W - prev.w * 0.65, w: prev.w, i, dir: fromLeft ? 1 : -1, speed: unit * (4 + Math.min(i, 40) * 0.09) };
+}
+function drop() {
+  if (state !== "play") return;
+  const prev = blocks[blocks.length - 1];
+  const left = Math.max(cur.x, prev.x), right = Math.min(cur.x + cur.w, prev.x + prev.w);
+  if (right - left <= 1) { debris.push({ x: cur.x, w: cur.w, y: yOf(cur.i), vy: 0, i: cur.i }); return gameOver(); }
+  const perfect = Math.abs(cur.x - prev.x) < unit * 0.12;
+  if (perfect) {
+    combo++;
+    const grow = combo >= 3 ? Math.min(unit * 0.3, unit * 6 - prev.w) : 0;
+    blocks.push({ x: prev.x - grow / 2, w: prev.w + grow, i: cur.i, flash: 1 });
+    beep(520 + combo * 60, 0.12, "sine", 0.08);
+    $("#combo").textContent = combo >= 3 ? `Perfect x${combo}! The block grows` : `Perfect x${combo}`; $("#combo").hidden = false;
+  } else {
+    combo = 0; $("#combo").hidden = true;
+    blocks.push({ x: left, w: right - left, i: cur.i });
+    // sliced piece falls away
+    if (cur.x < left) debris.push({ x: cur.x, w: left - cur.x, y: yOf(cur.i), vy: 0, i: cur.i });
+    if (cur.x + cur.w > right) debris.push({ x: right, w: cur.x + cur.w - right, y: yOf(cur.i), vy: 0, i: cur.i });
+    beep(300 + blocks.length * 6, 0.08);
+  }
+  $("#score").textContent = blocks.length - 1;
+  spawn();
+}
+const yOf = i => H * 0.78 - i * BH();
+function gameOver() {
+  state = "over"; beep(140, 0.4, "sawtooth", 0.08);
+  const sc = blocks.length - 1, isBest = sc > best;
+  if (isBest) { best = sc; store.set("stack", String(best)); }
+  setTimeout(() => {
+    $("#overTitle").textContent = isBest && sc > 0 ? "New best!" : "Toppled!";
+    $("#final").textContent = sc; $("#best").textContent = best; $("#over").hidden = false;
+  }, 700);
+}
+function start() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch {} } actx?.resume?.();
+  $("#start").hidden = true; $("#over").hidden = true; $("#score").hidden = false; $("#combo").hidden = true;
+  reset(); state = "play";
+}
+$("#go").onclick = start; $("#again").onclick = start;
+cv.addEventListener("pointerdown", e => { e.preventDefault(); drop(); });
+addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); state === "play" ? drop() : null; } });
+
+function drawBlock(x, y, w, i, flash = 0) {
+  const h = BH(), d = h * 0.45;
+  g.fillStyle = `hsl(${(170 + i * 9) % 360} 60% 38%)`; // side
+  g.beginPath(); g.moveTo(x + w, y); g.lineTo(x + w + d, y - d); g.lineTo(x + w + d, y - d + h); g.lineTo(x + w, y + h); g.fill();
+  g.fillStyle = `hsl(${(170 + i * 9) % 360} 70% 70%)`; // top
+  g.beginPath(); g.moveTo(x, y); g.lineTo(x + d, y - d); g.lineTo(x + w + d, y - d); g.lineTo(x + w, y); g.fill();
+  g.fillStyle = color(i); g.fillRect(x, y, w, h);
+  if (flash > 0) { g.fillStyle = `rgba(255,255,255,${flash * 0.7})`; g.fillRect(x, y - d, w + d, h + d); }
+}
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - t0) / 1000 || 0); t0 = ts;
+  // sky gets darker as the tower climbs
+  const hgt = blocks ? blocks.length : 0, k = Math.min(1, hgt / 60);
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, `hsl(${250 - k * 20} 55% ${18 - k * 8}%)`); sky.addColorStop(1, `hsl(${320 - k * 60} 60% ${45 - k * 25}%)`);
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  for (let s = 0; s < 40; s++) { g.fillStyle = `rgba(255,255,255,${k * 0.6 * ((s * 37) % 10) / 10})`; g.fillRect((s * 97) % W, (s * 53) % (H * 0.7), 2, 2); }
+  if (blocks) {
+    if (state === "play") { cur.x += cur.dir * cur.speed * dt; if (cur.x > W - cur.w * 0.1 + unit) cur.dir = -1; if (cur.x < -cur.w * 0.9 - unit) cur.dir = 1; }
+    const target = Math.max(0, (blocks.length - 6) * BH());
+    camY += (target - camY) * Math.min(1, dt * 5);
+    g.save(); g.translate(0, camY);
+    g.fillStyle = "#2a2160"; g.fillRect(0, yOf(0) + BH(), W, H);
+    for (const b of blocks) { drawBlock(b.x, yOf(b.i), b.w, b.i, b.flash || 0); if (b.flash) b.flash = Math.max(0, b.flash - dt * 3); }
+    if (state === "play") drawBlock(cur.x, yOf(cur.i), cur.w, cur.i);
+    for (const d of debris) { d.vy += 1800 * dt; d.y += d.vy * dt; drawBlock(d.x, d.y, d.w, d.i); }
+    debris = debris.filter(d => d.y - camY < H + 100);
+    g.restore();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
