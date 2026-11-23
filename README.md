@@ -26,6 +26,10 @@ On a computer, use the arrow keys (or WASD) to move, F or Enter to throw, and Es
 
 Tap **Add photo** on the start screen, then drag and zoom to fit the face in the circle. Photos are kept only on that phone and are never uploaded. The faces are wrapped onto 3D heads that turn toward the camera so they're always visible.
 
+## Add it to your Home Screen
+
+On iPhone or iPad, open the game in Safari, tap **Share**, then **Add to Home Screen**. It appears as **Chaim Rush** with its own icon and opens full screen. The start screen shows these steps too (and Android's), and hides them once you're playing from the Home Screen.
+
 ## Running it
 
-It's a single file, `index.html`, with no build step. It loads the three.js 3D engine (version 0.149.0) from the jsDelivr CDN and is served by GitHub Pages from the `main` branch.
+The game is a single file, `index.html`, with no build step; `manifest.webmanifest` and the icon PNGs set the app's name and Home Screen icon. It loads the three.js 3D engine (version 0.149.0) from the jsDelivr CDN and is served by GitHub Pages from the `main` branch.

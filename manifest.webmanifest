@@ -1,0 +1,15 @@
+{
+  "name": "Chaim Rush",
+  "short_name": "Chaim Rush",
+  "description": "A 3D endless runner: dodge trains, grab coins and stay ahead of the chaser.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#16133a",
+  "theme_color": "#16133a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

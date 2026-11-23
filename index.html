@@ -3,16 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-</head>
-<body>
 <title>Chaim Rush</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chaim Rush">
+<meta name="application-name" content="Chaim Rush">
+<meta name="theme-color" content="#16133a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
 <style>
 /* Layout: full-screen WebGL scene; HUD, throw button and menus are DOM overlays that clear the phone's safe areas. One dusk-city look in both themes. */
 :root{
@@ -82,6 +88,21 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 .how div{background:var(--panel2);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}
 .how b{font-size:18px;color:var(--ink);line-height:1.1}
 .note{font-size:12.5px;color:var(--muted);margin:0;text-align:center}
+.install{background:var(--panel2);border-radius:14px;padding:0;overflow:hidden}
+.install summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;font-weight:700;font-size:14.5px;line-height:1.3}
+.install summary::-webkit-details-marker{display:none}
+.install summary::after{content:"";margin-left:auto;flex:none;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-3px);transition:transform .2s}
+.install[open] summary::after{transform:rotate(-135deg) translateY(-2px)}
+.install .ico{flex:none;width:32px;height:32px;border-radius:9px;background:var(--teal);color:#06231f;display:grid;place-items:center}
+.install .ico svg{width:20px;height:20px}
+.steps{padding:0 14px 14px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.45}
+.steps .plat{margin:4px 0 0;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teal)}
+.steps ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.steps li::marker{color:var(--coral);font-weight:700}
+.steps .key{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#fff6ea;color:#2a6df4;vertical-align:-6px;margin:0 2px}
+.steps .key svg{width:17px;height:17px}
+.steps .tip{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.install summary::after{transition:none}}
 .err{color:var(--coral);font-size:14px;margin:0;text-align:center}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center}
 .stats div{background:var(--panel2);border-radius:12px;padding:10px 4px}
@@ -151,6 +172,26 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
     <p class="err" id="loadErr" hidden>The 3D engine couldn't load. Check your connection and reload the page.</p>
     <button class="big" id="playBtn">Run!</button>
     <p class="note">Photos stay on this phone. They're never uploaded.</p>
+    <details class="install" id="installBox">
+      <summary><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M12 7v7M9 11h6"/></svg></span>Play it like an app: add it to your Home Screen</summary>
+      <div class="steps" id="stepsIos">
+        <p class="plat">iPhone or iPad (Safari)</p>
+        <ol>
+          <li>Tap the <b>Share</b> button <span class="key" aria-label="Share icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg></span> in Safari's toolbar, at the bottom of the screen (at the top on iPad).</li>
+          <li>Scroll down the menu and tap <b>Add to Home Screen</b> <span class="key" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg></span>. If you don't see it, tap <b>Edit Actions</b> at the bottom of the list and add it.</li>
+          <li>Check the name says <b>Chaim Rush</b>, turn on <b>Open as Web App</b> if you see that switch, then tap <b>Add</b>.</li>
+          <li>Open <b>Chaim Rush</b> from your Home Screen. It plays full screen, with no Safari bars.</li>
+        </ol>
+        <p class="tip">Using Chrome on iPhone? Tap the Share button in the address bar at the top, then <b>Add to Home Screen</b>.</p>
+      </div>
+      <div class="steps" id="stepsAndroid">
+        <p class="plat">Android (Chrome)</p>
+        <ol>
+          <li>Tap the <b>⋮</b> menu at the top right.</li>
+          <li>Tap <b>Add to Home screen</b> or <b>Install app</b>, then <b>Install</b>.</li>
+        </ol>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -227,6 +268,16 @@ function setFace(kind, url, save) {
 setFace("runner", store.get("runnerFace") || defaultFace("runner"));
 setFace("chaser", store.get("chaserFace") || defaultFace("chaser"));
 $("#runnerName").value = store.get("runnerName") || "";
+// install help: hide it when already running from the Home Screen; show the steps for this phone first
+(() => {
+  const standalone = window.navigator.standalone === true || window.matchMedia?.("(display-mode: standalone)").matches || window.matchMedia?.("(display-mode: fullscreen)").matches;
+  if (standalone) { $("#installBox").hidden = true; return; }
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), android = /Android/.test(ua);
+  if (ios) $("#stepsAndroid").hidden = true;
+  if (android) $("#stepsIos").hidden = true;
+  if ((ios || android) && store.get("installSeen") !== "1") $("#installBox").open = true;
+  $("#installBox").addEventListener("toggle", () => store.set("installSeen", "1"));
+})();
 $("#chaserName").value = store.get("chaserName") || "";
 ["runner", "chaser"].forEach(k => $("#" + k + "Name").addEventListener("input", e => store.set(k + "Name", e.target.value.trim())));
 
