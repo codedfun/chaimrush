@@ -35,9 +35,14 @@ button{cursor:pointer}
   padding-top:calc(10px + env(safe-area-inset-top,0px));padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
 .hud .score{font-family:var(--display);font-size:30px;line-height:1;text-shadow:0 2px 0 rgb(0 0 0/.35);font-variant-numeric:tabular-nums}
 .hud .best{font-size:13px;color:var(--muted);margin-top:4px}
-.hud .right{display:flex;gap:8px;align-items:center}
+.hud .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .coins{font-family:var(--display);font-size:20px;display:flex;align-items:center;gap:6px;background:rgb(0 0 0/.3);border-radius:999px;padding:5px 12px 5px 6px;font-variant-numeric:tabular-nums}
 .coins i{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1a8,var(--gold) 55%,#d99a10);display:block}
+.boards{font-family:var(--display);display:flex;align-items:center;gap:6px;background:rgb(0 0 0/.3);border-radius:999px;padding:5px 12px 5px 8px;font-variant-numeric:tabular-nums}
+.boards svg{width:26px;height:16px;flex:none}
+.boards b{font-weight:400;font-size:20px}
+.boards small{font-family:var(--body);font-size:12px;color:var(--muted)}
+.boards.has{background:rgb(255 201 60/.22)}
 .hbtn{pointer-events:auto;width:40px;height:40px;border-radius:12px;border:0;background:rgb(0 0 0/.32);display:grid;place-items:center}
 .hbtn svg{width:20px;height:20px}
 .warn{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));font-family:var(--display);font-size:16px;color:var(--coral);background:rgb(0 0 0/.45);padding:6px 14px;border-radius:999px;pointer-events:none;white-space:nowrap}
@@ -89,6 +94,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 <div class="hud" id="hud" hidden>
   <div><div class="score" id="score">0</div><div class="best" id="bestHud"></div></div>
   <div class="right">
+    <div class="boards" id="boardHud" aria-label="Skateboards"><svg viewBox="0 0 26 16" aria-hidden="true"><rect x="1" y="4" width="24" height="5" rx="2.5" fill="#ffc93c"/><rect x="4" y="5.5" width="18" height="1.6" fill="#ff6a55"/><circle cx="7" cy="12" r="2.6" fill="#fff6ea"/><circle cx="19" cy="12" r="2.6" fill="#fff6ea"/></svg><b id="boardCount">0</b><small id="boardNext">0/26</small></div>
     <div class="coins"><i></i><span id="coinCount">0</span></div>
     <button class="hbtn" id="muteBtn" aria-label="Sound off"><svg viewBox="0 0 24 24" fill="none" stroke="#fff6ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path id="muteWave" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
     <button class="hbtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" fill="#fff6ea"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
@@ -118,7 +124,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
       <div><b>←→</b>Swipe to switch lanes</div>
       <div><b>↑</b>Swipe up to jump</div>
       <div><b>↓</b>Swipe down to slide</div>
-      <div><b>●</b>Grab coins</div>
+      <div><b>●</b>26 coins = a skateboard (extra life)</div>
     </div>
     <button class="big" id="playBtn">Run!</button>
     <p class="note">Photos stay on this phone. They're never uploaded.</p>
@@ -368,9 +374,20 @@ function drawCoin(c, t) {
   ctx.fillStyle = "#d99a10"; ctx.beginPath(); ctx.ellipse(sx, sy, w, r, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#ffc93c"; ctx.beginPath(); ctx.ellipse(sx, sy, w * 0.78, r * 0.78, 0, 0, Math.PI * 2); ctx.fill();
 }
-function drawPerson(x, y, z, face, pal, phase, state, scale = 1) {
+function drawPerson(x, y, z, face, pal, phase, state, scale = 1, board = false) {
   if (z < NEAR + 0.3) return;
-  const [sx, sy0, s] = P(x, y, z), u = s * scale, ground = P(x, 0, z)[1];
+  const [sx, sy00, s] = P(x, y, z), u = s * scale, ground = P(x, 0, z)[1];
+  let sy0 = sy00;
+  if (board) {
+    ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(sx, ground, 0.75 * u, 0.15 * u, 0, 0, Math.PI * 2); ctx.fill();
+    const by = sy00 - 0.12 * u;
+    ctx.fillStyle = "#fff6ea";
+    for (const wx of [-0.38, 0.38]) { ctx.beginPath(); ctx.arc(sx + wx * u, by + 0.08 * u, 0.09 * u, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#ffc93c"; ctx.beginPath(); ctx.roundRect(sx - 0.62 * u, by - 0.06 * u, 1.24 * u, 0.12 * u, 0.06 * u); ctx.fill();
+    ctx.fillStyle = "#ff6a55"; ctx.fillRect(sx - 0.45 * u, by - 0.02 * u, 0.9 * u, 0.04 * u);
+    sy0 = sy00 - 0.2 * u;
+    if (state === "run") state = "ride";
+  }
   // shadow
   ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(sx, ground, 0.55 * u, 0.14 * u, 0, 0, Math.PI * 2); ctx.fill();
   const sy = sy0;
@@ -387,31 +404,34 @@ function drawPerson(x, y, z, face, pal, phase, state, scale = 1) {
     head(sx + 0.15 * u, sy - 0.62 * u, 0.36 * u);
     return;
   }
-  const air = state === "air", sw = air ? 0.5 : Math.sin(phase);
+  const air = state === "air", ride = state === "ride";
+  const sw = air ? 0.5 : ride ? 0.32 + Math.sin(phase * 0.25) * 0.05 : Math.sin(phase);
   const limb = (px, py, len, ang, w, col) => { ctx.save(); ctx.translate(px, py); ctx.rotate(ang); ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(-w / 2, 0, w, len, w / 2); ctx.fill(); ctx.restore(); };
   const hipY = sy - 0.8 * u, shY = hipY - 0.72 * u;
-  limb(sx - 0.14 * u, hipY, 0.8 * u, air ? 0.7 : sw * 0.6, 0.24 * u, pal.legs);
-  limb(sx + 0.14 * u, hipY, 0.8 * u, air ? -0.3 : -sw * 0.6, 0.24 * u, pal.legs);
+  limb(sx - 0.14 * u, hipY, 0.8 * u, air ? 0.7 : ride ? sw : sw * 0.6, 0.24 * u, pal.legs);
+  limb(sx + 0.14 * u, hipY, 0.8 * u, air ? -0.3 : ride ? -sw : -sw * 0.6, 0.24 * u, pal.legs);
   ctx.fillStyle = pal.body; ctx.beginPath(); ctx.roundRect(sx - 0.34 * u, shY, 0.68 * u, 0.8 * u, 0.16 * u); ctx.fill();
   ctx.fillStyle = pal.trim; ctx.fillRect(sx - 0.34 * u, shY + 0.5 * u, 0.68 * u, 0.1 * u);
-  limb(sx - 0.38 * u, shY + 0.08 * u, 0.62 * u, air ? 2.4 : -sw * 0.8, 0.18 * u, pal.body);
-  limb(sx + 0.38 * u, shY + 0.08 * u, 0.62 * u, air ? -2.4 : sw * 0.8, 0.18 * u, pal.body);
+  limb(sx - 0.38 * u, shY + 0.08 * u, 0.62 * u, air ? 2.4 : ride ? 1.25 : -sw * 0.8, 0.18 * u, pal.body);
+  limb(sx + 0.38 * u, shY + 0.08 * u, 0.62 * u, air ? -2.4 : ride ? -1.25 : sw * 0.8, 0.18 * u, pal.body);
   head(sx, shY - 0.4 * u, 0.44 * u);
 }
 const RUNNER = { body: "#2ec4b6", trim: "#fff6ea", legs: "#1d2a5c", ring: "#fff6ea" };
 const CHASER = { body: "#ff6a55", trim: "#16133a", legs: "#2a1f3e", ring: "#16133a" };
 
 /* ---------- game state ---------- */
-const world = { dist: 0, speed: 15, t: 0, coins: 0 };
+const world = { dist: 0, speed: 15, t: 0, coins: 0, boards: 0, bonus: 0 };
+let sparks = [];
 let obstacles = [], coins = [], nextRow = 0, laneBusy = [0, 0, 0];
-const player = { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0 };
+const player = { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0, shield: 0 };
 const chaser = { z: -12, x: 0, timer: 0 };
 let running = false, paused = false, over = false, overTimer = 0, last = 0;
 let best = +(store.get("best") || 0);
 
 function reset() {
-  Object.assign(world, { dist: 0, speed: 15, t: 0, coins: 0 });
-  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0 });
+  Object.assign(world, { dist: 0, speed: 15, t: 0, coins: 0, boards: 0, bonus: 0 }); sparks = [];
+  Object.assign(player, { lane: 0, prevLane: 0, x: 0, y: 0, vy: 0, slide: 0, phase: 0, inv: 0, shield: 0 });
+  hudBoards();
   Object.assign(chaser, { z: -1.5, x: 1, timer: 2.6 });
   obstacles = []; coins = []; nextRow = 34; laneBusy = [0, 0, 0]; camX = 0;
   over = false; overTimer = 0;
@@ -447,6 +467,7 @@ function update(dt) {
     overTimer += dt;
     chaser.z += (-0.7 - chaser.z) * Math.min(1, dt * 6);
     chaser.x += (player.x + 0.5 - chaser.x) * Math.min(1, dt * 6);
+    updateSparks(dt);
     if (overTimer > 0.9 && $("#overScreen").hidden) showOver();
     return;
   }
@@ -461,6 +482,7 @@ function update(dt) {
   player.y = Math.max(0, player.y + player.vy * dt); if (player.y === 0) player.vy = 0;
   player.slide = Math.max(0, player.slide - dt);
   player.inv = Math.max(0, player.inv - dt);
+  player.shield = Math.max(0, player.shield - dt);
   player.phase += dt * world.speed * 0.75;
   camX += (player.x * 0.55 - camX) * Math.min(1, dt * 8);
   // chaser
@@ -469,7 +491,8 @@ function update(dt) {
   chaser.z += (cTarget - chaser.z) * Math.min(1, dt * (chaser.timer > 0 ? 5 : 1.2));
   const side = player.lane >= 1 ? -1 : 1;
   chaser.x += (player.x + side * 1.25 - chaser.x) * Math.min(1, dt * 5);
-  // collisions
+  // collisions (skipped while a broken board's boost lasts)
+  if (player.shield <= 0) {
   const tall = player.slide > 0 ? 0.9 : 1.9;
   for (const o of obstacles) {
     const z0 = o.wz - world.dist, z1 = z0 + o.len;
@@ -482,26 +505,64 @@ function update(dt) {
     else if (o.t === "gate") hit = !(player.slide > 0) && player.y + tall > 1.45 && player.y < 2.45;
     if (!hit) continue;
     const headOn = gap < 0.7 && (o.t !== "block" || z0 > -0.3);
-    if (headOn) return crash();
-    if (player.inv <= 0) stumble();
+    if (headOn) return crash(o);
+    if (player.inv <= 0) { if (stumble(o)) return; }
+  }
   }
   for (let i = coins.length - 1; i >= 0; i--) {
     const c = coins[i], z = c.wz - world.dist;
     if (z < -2) { coins.splice(i, 1); continue; }
-    if (Math.abs(z) < 0.7 && Math.abs(c.lane * LANE - player.x) < 0.8 && Math.abs(c.y - (player.y + 0.9)) < 1.15) { coins.splice(i, 1); world.coins++; sfx.coin(); }
+    if (Math.abs(z) < 0.7 && Math.abs(c.lane * LANE - player.x) < 0.8 && Math.abs(c.y - (player.y + 0.9)) < 1.15) { coins.splice(i, 1); world.coins++; sfx.coin(); if (world.coins % BOARD_COST === 0) gainBoard(); hudBoards(); }
   }
   obstacles = obstacles.filter(o => o.wz + o.len - world.dist > CAMZ);
+  updateSparks(dt);
   $("#score").textContent = score().toLocaleString();
   $("#coinCount").textContent = world.coins;
 }
-const score = () => Math.floor(world.dist / 2) + world.coins * 5;
-function stumble() {
+const score = () => Math.floor(world.dist / 2) + world.coins * 5 + world.bonus;
+function stumble(o) {
   player.inv = 0.7;
-  if (chaser.timer > 0) return crash();
+  if (chaser.timer > 0) { crash(o); return true; }
   player.lane = player.prevLane; chaser.timer = 7; sfx.bump();
   note($("#chaserName").value.trim() ? `${$("#chaserName").value.trim()} is right behind you!` : "The chaser is right behind you!");
 }
-function crash() { over = true; overTimer = 0; player.slide = 0; sfx.crash(); }
+function crash(o) {
+  if (world.boards > 0) return useBoard(o);
+  over = true; overTimer = 0; player.slide = 0; sfx.crash();
+}
+
+/* ---------- skateboards: every 26 coins is an extra life ---------- */
+const BOARD_COST = 26, BOARD_MAX = 3;
+function hudBoards() {
+  $("#boardCount").textContent = world.boards;
+  $("#boardNext").textContent = `${world.coins % BOARD_COST}/${BOARD_COST}`;
+  $("#boardHud").classList.toggle("has", world.boards > 0);
+}
+function gainBoard() {
+  if (world.boards >= BOARD_MAX) { world.bonus += 50; note("3 skateboards is the max. +50 points"); blip(880, 0.12, "triangle", 0.06); return; }
+  world.boards++;
+  note(world.boards === 1 ? "Skateboard! That's an extra life" : `Skateboard! You have ${world.boards}`);
+  blip(523, 0.1, "square", 0.05); setTimeout(() => blip(659, 0.1, "square", 0.05), 90); setTimeout(() => blip(1047, 0.16, "square", 0.05), 180);
+}
+function useBoard(o) {
+  world.boards--; hudBoards();
+  player.shield = 2.2; player.inv = 2.2; player.slide = 0;
+  player.vy = Math.max(player.vy, 9);
+  chaser.timer = 0;
+  // smash what was hit, plus anything right ahead in the runner's lane
+  const lane = Math.round(player.x / LANE);
+  obstacles = obstacles.filter(x => !(x === o || (x.lane === lane && x.wz - world.dist < 8 && x.wz + x.len - world.dist > -1)));
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * 5;
+    sparks.push({ x: player.x, y: 0.6 + Math.random(), z: 0.6, vx: Math.cos(a) * v, vy: 3 + Math.random() * 6, vz: Math.sin(a) * v * 0.6 + 2, life: 0.9 + Math.random() * 0.4, c: Math.random() < 0.5 ? "#ffc93c" : "#ff6a55" });
+  }
+  blip(220, 0.12, "sawtooth", 0.08); setTimeout(() => blip(440, 0.12, "triangle", 0.07, 2), 100);
+  note(world.boards ? `Board smashed! ${world.boards} left` : "Board smashed! Keep running");
+}
+function updateSparks(dt) {
+  for (const p of sparks) { p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= 20 * dt; p.life -= dt; }
+  sparks = sparks.filter(p => p.life > 0 && p.y > -0.2);
+}
 
 function drawFrame() {
   if (!W) return;
@@ -510,10 +571,15 @@ function drawFrame() {
   for (const o of obstacles) items.push([o.wz - world.dist, () => drawObstacle(o)]);
   for (const c of coins) items.push([c.wz - world.dist, () => drawCoin(c, world.t)]);
   const pState = player.slide > 0 ? "slide" : player.y > 0.05 ? "air" : "run";
-  items.push([0.01, () => drawPerson(player.x, player.y, 0, faces.runner, RUNNER, player.phase, over ? "run" : pState)]);
+  items.push([0.01, () => {
+    if (player.shield > 0 && Math.floor(world.t * 12) % 2) ctx.globalAlpha *= 0.35;
+    drawPerson(player.x, player.y, 0, faces.runner, RUNNER, player.phase, over ? "run" : pState, 1, world.boards > 0 && !over);
+  }]);
   items.push([chaser.z, () => drawPerson(chaser.x, 0, chaser.z, faces.chaser, CHASER, player.phase * 1.05, "run", 1)]);
   items.sort((a, b) => b[0] - a[0]);
   for (const [z, fn] of items) { ctx.globalAlpha = Math.max(0, Math.min(1, (FAR - z) / 30)); fn(); }
+  ctx.globalAlpha = 1;
+  for (const p of sparks) { if (p.z < NEAR) continue; const [sx, sy, sc] = P(p.x, p.y, p.z), r = 0.1 * sc; ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.c; ctx.fillRect(sx - r, sy - r, r * 2, r * 2); }
   ctx.globalAlpha = 1;
 }
 function loop(ts) {

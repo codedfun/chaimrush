@@ -8,6 +8,7 @@ An endless runner for phones. Put a face on the runner and a face on the chaser,
 - **Swipe up** to jump over barriers.
 - **Swipe down** to slide under gates.
 - Grab coins for bonus points. Bump into something once and the chaser closes in; bump again before they fall back and you're caught. Running straight into a train ends the run.
+- **Skateboards:** every 26 coins gives you a skateboard (carry up to 3). A crash while riding smashes the board instead of ending the run: you hop clear, pass through obstacles for about two seconds, and the chaser drops back. Coins past 3 boards are worth a 50-point bonus each time.
 
 On a computer, use the arrow keys (or WASD), and Escape to pause.
 
