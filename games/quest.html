@@ -372,7 +372,7 @@ function hitCrate(tx, ty) {
   } else if (ch === "P" || ch === "L") {
     level.g[ty][tx] = "U"; sfx.sprout();
     const type = ch === "L" ? "heart" : P.big ? "spark" : "gem";
-    items.push({ type, x: tx + 0.5, y: ty + 1, baseY: ty, emerge: 0.7, vx: type === "spark" ? 0 : 2.4, vy: 0, w: 0.7, h: 0.7 });
+    items.push({ type, x: tx + 0.5, y: ty + 1, baseY: ty, emerge: 0.7, vx: (type === "spark" ? 1.5 : 1.9) * (P.x > tx + 0.5 ? -1 : 1), vy: 0, w: 0.7, h: 0.7 });
   } else if (ch === "X" && P.big) {
     level.g[ty][tx] = " "; sfx.smash();
     for (let k = 0; k < 4; k++) pops.push({ kind: "brick", x: tx + 0.5, y: ty + 0.5, vx: (k % 2 ? 1 : -1) * (2 + Math.random() * 2), vy: -9 - (k < 2 ? 3 : 0), t: 1.2 });
@@ -461,14 +461,22 @@ function update(dt) {
   enemies = enemies.filter(e => e.alive || e.dieT > 0);
   // power-ups: rise out of the crate, then slide (gems and hearts) or wait (spark orbs)
   for (const it of items) {
-    if (it.emerge > 0) { it.emerge -= dt; it.y = it.baseY + Math.max(0, it.emerge / 0.7) * 1; if (it.emerge <= 0) it.y = it.baseY; continue; }
-    if (it.type !== "spark") {
+    if (it.emerge > 0) { it.emerge -= dt; it.y = it.baseY + Math.max(0, it.emerge / 0.7) * 1; if (it.emerge <= 0) it.y = it.baseY; }
+    else {
       it.vy = Math.min(18, it.vy + 38 * dt);
       if (moveX(it, it.vx * dt)) it.vx *= -1;
-      const ir = moveY(it, it.vy * dt, false); if (ir.landed) it.vy = 0;
+      const ir = moveY(it, it.vy * dt, false);
+      if (ir.landed) {
+        it.vy = 0;
+        // drop off crates and ledges, but turn around instead of sliding into a pit
+        const ax = Math.floor(it.x + Math.sign(it.vx) * (it.w / 2 + 0.05));
+        let floorBelow = false;
+        for (let yy = Math.floor(it.y); yy < ROWS; yy++) { const ch = tileAt(ax, yy); if (solid(ch) || ch === "=") { floorBelow = true; break; } }
+        if (!floorBelow) it.vx *= -1;
+      }
       if (it.y > ROWS + 2) it.gone = true;
     }
-    if (!it.gone && Math.abs(it.x - P.x) < 0.75 && it.y > P.y - P.h - 0.3 && it.y - it.h < P.y) {
+    if (!it.gone && it.emerge <= 0 && Math.abs(it.x - P.x) < 0.9 && it.y > P.y - P.h - 0.6 && it.y - it.h < P.y + 0.2) {
       it.gone = true;
       if (it.type === "gem") { if (!P.big) { setBig(true); P.y -= 0.01; } sfx.grow(); toast("Power Gem! You grew"); addCoin(0); }
       else if (it.type === "spark") { if (!P.big) setBig(true); P.spark = true; syncFire(); sfx.grow(); toast("Spark Orb! Tap the bolt button to throw sparks"); }
