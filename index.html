@@ -216,7 +216,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
     </details>
     <a class="more" href="games/">
       <span class="mi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg></span>
-      <span class="mt"><b>More games</b><small>Chaim Quest: a rooftop platformer with your face</small></span>
+      <span class="mt"><b>More games</b><small>Chaim Quest and ChaimLand</small></span>
       <span class="ma" aria-hidden="true">›</span>
     </a>
   </div>
@@ -933,8 +933,8 @@ const food = new THREE.Group();
   for (let i = 0; i < 9; i++) { const a = i * 2.4, r = 0.04 + (i % 3) * 0.025; const sd = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), seedMat); sd.position.set(Math.cos(a) * r, 0.035 + 0.08 * Math.sqrt(1 - (r / 0.11) ** 2) * 0.75, Math.sin(a) * r); sd.scale.set(1, 0.5, 1.6); food.add(sd); }
   food.traverse(m => { if (m.isMesh) m.castShadow = true; });
 }
-const eat = { t: 0, bites: 0, k: 0 };
-const EAT_CYCLE = 2.4, BITES_PER_BURGER = 5;
+const eat = { t: 14, bites: 0, k: 0 }; // first snack 6 seconds into a run
+const EAT_CYCLE = 20, EAT_TURN = 2.6, BITES_PER_BURGER = 5;
 const heldMagnet = makeMagnet(false); heldMagnet.scale.setScalar(0.7); heldMagnet.visible = false; scene.add(heldMagnet);
 const magnetGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff6a55, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.6, depthWrite: false }));
 magnetGlow.scale.set(1.1, 1.1, 1); heldMagnet.add(magnetGlow);
@@ -1499,8 +1499,8 @@ function render(dt) {
   let eatTarget = 0;
   if (canEat) {
     const before = eat.t % EAT_CYCLE; eat.t += dt; const ph = eat.t % EAT_CYCLE;
-    if (ph < 0.25) eatTarget = ph / 0.25; else if (ph < 0.75) eatTarget = 1; else if (ph < 1.0) eatTarget = 1 - (ph - 0.75) / 0.25;
-    if (before < 0.5 && ph >= 0.5) {
+    if (ph >= 0.6 && ph < 0.85) eatTarget = (ph - 0.6) / 0.25; else if (ph >= 0.85 && ph < 1.5) eatTarget = 1; else if (ph >= 1.5 && ph < 1.75) eatTarget = 1 - (ph - 1.5) / 0.25;
+    if (before < 1.15 && ph >= 1.15) {
       eat.bites++;
       const hp = new THREE.Vector3(); runner.head.getWorldPosition(hp);
       burst(hp.x, hp.y - 0.15, hp.z + 0.25, [0xd9913a, 0x5fc44a, 0xffc21a], 6, 1.6);
@@ -1514,7 +1514,7 @@ function render(dt) {
   food.userData.pop = Math.max(0, (food.userData.pop || 0) - dt);
   food.scale.setScalar(1.7 * (food.userData.pop > 0 ? 0.6 + (0.35 - food.userData.pop) / 0.35 * 0.4 : left));
   food.visible = player.jet <= 0 || mode !== "play";
-  animateHuman(runner, st, player.phase, dt, { faceCam: true, eatK: eat.k > 0.01 ? eat.k : 0, ...(player.throwT > 0 ? { throwK: 1 - player.throwT / 0.32 } : {}) });
+  animateHuman(runner, st, player.phase, dt, { faceCam: canEat && eat.t % EAT_CYCLE < EAT_TURN, eatK: eat.k > 0.01 ? eat.k : 0, ...(player.throwT > 0 ? { throwK: 1 - player.throwT / 0.32 } : {}) });
   const blink = player.shield > 0 && Math.floor(world.t * 12) % 2 === 1;
   runner.root.visible = !blink || mode !== "play";
 

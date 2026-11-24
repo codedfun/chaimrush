@@ -41,6 +41,8 @@ The **More games** button at the bottom of the start screen opens `games/`, a pa
 
 - **Chaim Quest** (`games/quest.html`): an original side-scrolling platformer across city rooftops. Put your own face on the hero (or reuse your Chaim Rush runner face), stomp slimes, avoid spiky rollers and spikes, bump star crates for coins, ride moving platforms and reach the glowing door. You start each level small: some star crates hold a **Power Gem** that makes you big, or a **Spark Orb** (if you're already big) that lets you throw bouncing sparks with the bolt button; a rare crate holds a **heart** (extra life). When a monster or spikes hit you, you lose your sparks first, then shrink, and only lose a life if you're hit while small. Big heroes can smash red bricks from below. Three levels; finishing one unlocks the next. On a phone, use the left/right buttons and the jump button (hold for a higher jump).
 
+- **ChaimLand** (`games/land.html`): an original 3D block-building game. Build with grass, dirt, sand, bricks, train tracks, lamps, fire and TNT on a 32×32 world. Drag to look around, pinch to zoom, two-finger drag to move, tap to place or break. Tap TNT with Break (or put fire next to it) to light it; explosions set off nearby TNT. Lamps glow at night (Day/Night button). The world saves on the phone.
+
 ## Add it to your Home Screen
 
 On iPhone or iPad, open the game in Safari, tap **Share**, then **Add to Home Screen**. It appears as **Chaim Rush** with its own icon and opens full screen. The start screen shows these steps too (and Android's), and hides them once you're playing from the Home Screen.
