@@ -66,6 +66,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 .big:active{transform:translateY(3px);box-shadow:0 2px 0 #b8402f}
 .sbtn{border:0;border-radius:12px;background:var(--panel2);padding:12px;font-weight:700}
 .sbtn.danger{color:var(--coral)}
+.facebox{display:flex;align-items:center;gap:14px;background:var(--panel2);border-radius:16px;padding:12px}
+.facebox img{width:72px;height:72px;border-radius:12px;object-fit:cover;border:3px solid var(--teal);flex:none;background:var(--night);image-rendering:auto}
+.facebox .fb{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.facebox b{font-size:15px}
+.facebox .sbtn{text-align:center;padding:10px;font-size:14px;background:var(--panel)}
+.crop{align-items:center}
+#cropCv{width:260px;height:260px;max-width:100%;border-radius:16px;touch-action:none;background:#0d0b26}
+.zoom{display:flex;align-items:center;gap:10px;width:100%;max-width:260px;font-size:13px;color:var(--muted)}
+.zoom input{flex:1;accent-color:var(--coral)}
+.row2{display:flex;gap:10px;width:100%}
+.row2 button{flex:1}
 .loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--display);font-size:16px;padding:10px 18px;border-radius:999px}
 @media (prefers-reduced-motion:reduce){.big:active{transform:none}}
 </style>
@@ -106,7 +117,14 @@ button{font:inherit;color:inherit;cursor:pointer}
       <li>Switch to <b>Break</b> and dig straight down or sideways to make tunnels. The ground goes about 50 blocks deep, with dark deep rock and glowing <b>crystals</b> near the bottom.</li>
       <li>Put a <b>Train</b> on a track and it drives itself. Tap <b>TNT</b> with Break, or put fire next to it, to blow it up.</li>
     </ul>
-    <p>Your changes save on this phone.</p>
+    <div class="facebox">
+      <img class="faceImg" alt="Your explorer's face">
+      <div class="fb"><b>Your explorer's face</b>
+        <label class="sbtn" for="faceFile">Choose a photo</label>
+        <button class="sbtn useRush" hidden>Use my Chaim Rush face</button>
+      </div>
+    </div>
+    <p>Your changes and your photo are saved only on this phone.</p>
     <button class="big" id="startBtn">Start exploring</button>
   </div>
 </div>
@@ -116,11 +134,29 @@ button{font:inherit;color:inherit;cursor:pointer}
     <h2>ChaimLand</h2>
     <button class="sbtn" id="resumeBtn">Back to the world</button>
     <button class="sbtn" id="homeBtn">Go back to the start</button>
+    <div class="facebox">
+      <img class="faceImg" alt="Your explorer's face">
+      <div class="fb"><b>Your explorer's face</b>
+        <label class="sbtn" for="faceFile">Choose a photo</label>
+        <button class="sbtn useRush" hidden>Use my Chaim Rush face</button>
+      </div>
+    </div>
     <button class="sbtn" id="helpBtn">How to play</button>
     <button class="sbtn danger" id="newBtn">Undo all my changes</button>
     <p id="newConfirm" hidden>Tap <b>Undo all my changes</b> again to reset the world.</p>
   </div>
 </div>
+
+<div class="screen" id="cropScreen" hidden>
+  <div class="card crop">
+    <h2>Fit the face in the square</h2>
+    <canvas id="cropCv" width="520" height="520"></canvas>
+    <div class="zoom"><span>Zoom</span><input type="range" id="zoom" min="1" max="4" step="0.01" value="1.4" aria-label="Zoom"></div>
+    <p>Drag to move. Pinch or use the slider to zoom.</p>
+    <div class="row2"><button class="sbtn" id="cropCancel">Cancel</button><button class="big" id="cropOk" style="font-size:18px;padding:11px">Use photo</button></div>
+  </div>
+</div>
+<input type="file" id="faceFile" accept="image/*" hidden>
 
 <script src="../vendor/three.min.js"></script>
 <script>
@@ -405,26 +441,31 @@ const lampLights = Array.from({ length: 6 }, () => { const l = new THREE.PointLi
 const fireLights = Array.from({ length: 3 }, () => { const l = new THREE.PointLight(0xff8a3a, 0, 8, 1.6); scene.add(l); return l; });
 
 /* ================= the player: an original blocky explorer wearing your face ================= */
-function faceImage() {
-  const url = store.get("facedash:runnerFace") || store.get("quest:face");
-  const img = new Image();
-  if (url) img.src = url;
-  else {
+function defaultFace() {
+  {
     const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d");
     g.fillStyle = "#e8b48a"; g.fillRect(0, 0, 64, 64); g.fillStyle = "#4a2716"; g.fillRect(0, 0, 64, 16);
     g.fillStyle = "#fff"; g.fillRect(14, 26, 10, 8); g.fillRect(40, 26, 10, 8); g.fillStyle = "#2a1d14"; g.fillRect(18, 27, 5, 6); g.fillRect(41, 27, 5, 6);
-    g.fillStyle = "#8a3a2a"; g.fillRect(22, 46, 20, 4); img.src = c.toDataURL();
+    g.fillStyle = "#8a3a2a"; g.fillRect(22, 46, 20, 4); return c.toDataURL();
   }
-  return img;
 }
+const faceImg = new Image();
+const rushFace = store.get("facedash:runnerFace");
+function setFace(url, save) {
+  faceImg.src = url; document.querySelectorAll(".faceImg").forEach(i => i.src = url);
+  if (save && !store.set("land:face", url)) toast("Couldn't save the photo on this phone, but it's on for now");
+}
+setFace(store.get("land:face") || rushFace || store.get("quest:face") || defaultFace());
+document.querySelectorAll(".useRush").forEach(b => { b.hidden = !rushFace; b.onclick = () => { setFace(rushFace, true); toast("Using your Chaim Rush face"); }; });
 const hero = new THREE.Group(); scene.add(hero);
 const HP = {};
 {
   const M = c => new THREE.MeshLambertMaterial({ color: c });
   const hoodie = M(0xff6a55), hoodieDark = M(0xd8503d), pants = M(0x2f2c3a), shoe = M(0xf2efe9), skin = M(0xe0a77e), hair = M(0x3a2418);
-  const faceTex = new THREE.Texture(), img = faceImage(); faceTex.encoding = THREE.sRGBEncoding;
-  const upd = () => { faceTex.image = img; faceTex.needsUpdate = true; }; if (img.complete && img.naturalWidth) upd(); else img.onload = upd;
-  const faceMat = new THREE.MeshLambertMaterial({ map: faceTex });
+  const faceMat = new THREE.MeshLambertMaterial({ color: 0xe0a77e });
+  // a new texture each time: a texture can't change size once it's on the graphics card
+  const upd = () => { if (!faceImg.naturalWidth) return; const old = faceMat.map, tex = new THREE.Texture(faceImg); tex.encoding = THREE.sRGBEncoding; tex.needsUpdate = true; faceMat.map = tex; faceMat.color.set(0xffffff); faceMat.needsUpdate = true; old?.dispose(); };
+  if (faceImg.complete) upd(); faceImg.addEventListener("load", upd);
   const box = (w, h, d, mat, x, y, z, parent = hero) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); parent.add(m); return m; };
   const pivot = (x, y, z) => { const p = new THREE.Group(); p.position.set(x, y, z); hero.add(p); return p; };
   box(0.5, 0.62, 0.28, hoodie, 0, 1.06, 0);
@@ -439,6 +480,48 @@ const HP = {};
     const leg = pivot(s * 0.13, 0.74, 0); box(0.22, 0.62, 0.24, pants, 0, -0.31, 0, leg); box(0.24, 0.1, 0.32, shoe, 0, -0.66, 0.04, leg); HP[s < 0 ? "legL" : "legR"] = leg;
   }
 }
+const crop = { img: null, zoom: 1.4, ox: 0, oy: 0, url: null };
+const cropCv = $("#cropCv"), cg = cropCv.getContext("2d");
+function drawCrop(target, size) {
+  const g = target || cg, S = size || 520, img = crop.img;
+  const base = Math.max(S / img.naturalWidth, S / img.naturalHeight) * crop.zoom, k = S / 520;
+  g.fillStyle = "#0d0b26"; g.fillRect(0, 0, S, S);
+  g.drawImage(img, S / 2 - img.naturalWidth * base / 2 + crop.ox * k, S / 2 - img.naturalHeight * base / 2 + crop.oy * k, img.naturalWidth * base, img.naturalHeight * base);
+  if (!target) {
+    const a = S * 0.1, w = S * 0.8;
+    g.save(); g.fillStyle = "rgba(10,8,30,.62)"; g.beginPath(); g.rect(0, 0, S, S); g.rect(a, a, w, w); g.fill("evenodd");
+    g.strokeStyle = "#2ec4b6"; g.lineWidth = 6; g.strokeRect(a, a, w, w); g.restore();
+  }
+}
+$("#faceFile").addEventListener("change", async e => {
+  const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+  const url = URL.createObjectURL(f), img = new Image(); img.src = url;
+  try { await img.decode(); } catch { URL.revokeObjectURL(url); toast("That photo couldn't be opened"); return; }
+  Object.assign(crop, { img, zoom: 1.4, ox: 0, oy: 0, url }); $("#zoom").value = 1.4;
+  $("#cropScreen").hidden = false; drawCrop();
+});
+$("#zoom").addEventListener("input", e => { crop.zoom = +e.target.value; drawCrop(); });
+{
+  const cp = new Map(); let pinch0 = null;
+  cropCv.addEventListener("pointerdown", e => { cropCv.setPointerCapture(e.pointerId); cp.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (cp.size === 2) { const [a, b] = [...cp.values()]; pinch0 = { d: Math.hypot(a.x - b.x, a.y - b.y), z: crop.zoom }; } });
+  cropCv.addEventListener("pointermove", e => {
+    const p = cp.get(e.pointerId); if (!p || !crop.img) return;
+    const k = 520 / cropCv.getBoundingClientRect().width;
+    if (cp.size === 1) { crop.ox += (e.clientX - p.x) * k; crop.oy += (e.clientY - p.y) * k; }
+    p.x = e.clientX; p.y = e.clientY;
+    if (cp.size === 2 && pinch0) { const [a, b] = [...cp.values()]; crop.zoom = Math.min(4, Math.max(1, pinch0.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch0.d)); $("#zoom").value = crop.zoom; }
+    drawCrop();
+  });
+  const endPtr = e => { cp.delete(e.pointerId); if (cp.size < 2) pinch0 = null; };
+  cropCv.addEventListener("pointerup", endPtr); cropCv.addEventListener("pointercancel", endPtr);
+}
+const closeCrop = () => { $("#cropScreen").hidden = true; if (crop.url) URL.revokeObjectURL(crop.url); crop.img = null; };
+$("#cropCancel").onclick = closeCrop;
+$("#cropOk").onclick = () => {
+  const out = document.createElement("canvas"); out.width = out.height = 256; const g = out.getContext("2d");
+  g.translate(128, 128); g.scale(1 / 0.8, 1 / 0.8); g.translate(-128, -128); drawCrop(g, 256);
+  setFace(out.toDataURL("image/jpeg", 0.88), true); closeCrop(); toast("New face on!");
+};
 const blob = new THREE.Mesh(new THREE.CircleGeometry(0.42, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }));
 blob.rotation.x = -Math.PI / 2; scene.add(blob);
 
