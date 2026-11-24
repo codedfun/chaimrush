@@ -103,6 +103,7 @@ button{font:inherit;color:inherit;cursor:pointer}
       <li><b>Drag</b> anywhere to look around. <b>Pinch</b> to move the camera closer or further.</li>
       <li>Tap <b>Fly</b> (or double-tap jump) to fly. Hold the up arrow to rise and the down arrow to sink.</li>
       <li>Pick a block at the bottom and <b>tap</b> a block near you to build on it. Tap the <b>Build</b> button to switch to <b>Break</b>.</li>
+      <li>Switch to <b>Break</b> and dig straight down or sideways to make tunnels. The ground goes about 50 blocks deep, with dark deep rock and glowing <b>crystals</b> near the bottom.</li>
       <li>Put a <b>Train</b> on a track and it drives itself. Tap <b>TNT</b> with Break, or put fire next to it, to blow it up.</li>
     </ul>
     <p>Your changes save on this phone.</p>
@@ -152,8 +153,8 @@ const sfx = { place: () => { tone(320, 0.08, "triangle", 0.07, 0.7); noise(0.05,
   horn: () => { tone(392, 0.18, "square", 0.05); setTimeout(() => tone(330, 0.3, "square", 0.05), 190); } };
 
 /* ================= textures: one atlas of 16x16 tiles, drawn here ================= */
-const TILE = { grassTop: 0, grassSide: 1, dirt: 2, sand: 3, stone: 4, brick: 5, logSide: 6, logTop: 7, leaves: 8, water: 9, flower: 10, rail: 11, lamp: 12, tntSide: 13, tntTop: 14 };
-const atlas = document.createElement("canvas"); atlas.width = 64; atlas.height = 64;
+const TILE = { grassTop: 0, grassSide: 1, dirt: 2, sand: 3, stone: 4, brick: 5, logSide: 6, logTop: 7, leaves: 8, water: 9, flower: 10, rail: 11, lamp: 12, tntSide: 13, tntTop: 14, deep: 15, bedrock: 16, crystal: 17 };
+const atlas = document.createElement("canvas"); atlas.width = 64; atlas.height = 128;
 const ag = atlas.getContext("2d");
 const tileCanvas = {};
 function tile(name, draw) {
@@ -179,6 +180,9 @@ tile("lamp", (g, r) => { g.fillStyle = "#3a3346"; g.fillRect(0, 0, 16, 16); g.fi
 // TNT: a yellow-and-black hazard crate with a bundle of red dynamite sticks
 tile("tntSide", (g, r) => { g.fillStyle = "#2a2630"; g.fillRect(0, 0, 16, 16); g.fillStyle = "#f2c230"; for (let i = -16; i < 16; i += 4) for (let y = 0; y < 16; y++) { const x = i + y; if (x >= 0 && x < 16 && (y < 3 || y > 12)) g.fillRect(x, y, 2, 1); } g.fillStyle = "#6b4a2e"; g.fillRect(0, 3, 16, 10); g.fillStyle = "#d8402e"; for (const x of [3, 6, 9, 12]) g.fillRect(x - 1, 4, 2, 8); g.fillStyle = "#f07a5e"; for (const x of [3, 6, 9, 12]) g.fillRect(x - 1, 4, 1, 8); g.fillStyle = "#2a2630"; g.fillRect(1, 7, 14, 2); g.fillStyle = "#e6e0d2"; g.fillRect(6, 7, 4, 2); });
 tile("tntTop", (g, r) => { g.fillStyle = "#f2c230"; g.fillRect(0, 0, 16, 16); g.fillStyle = "#2a2630"; for (let i = -16; i < 16; i += 4) for (let y = 0; y < 16; y++) { const x = i + y; if (x >= 0 && x < 16) g.fillRect(x, y, 2, 1); } g.fillStyle = "#6b4a2e"; g.fillRect(3, 3, 10, 10); g.fillStyle = "#d8402e"; for (const [x, y] of [[5, 5], [9, 5], [5, 9], [9, 9]]) g.fillRect(x, y, 2, 2); g.fillStyle = "#e6e0d2"; g.fillRect(7, 7, 2, 2); });
+tile("deep", (g, r) => { speckle(g, r, "#55525e", ["#4a4752", "#605d6a", "#423f4a", "#5b5865"], 100); g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(3, 9, 6, 1); g.fillRect(10, 3, 4, 1); });
+tile("bedrock", (g, r) => speckle(g, r, "#2c2a32", ["#1e1c22", "#3c3944", "#141317", "#4a4752"], 140));
+tile("crystal", (g, r) => { speckle(g, r, "#55525e", ["#4a4752", "#605d6a"], 60); for (const [x, y, w, h] of [[3, 3, 3, 5], [9, 2, 3, 4], [6, 9, 4, 5], [12, 10, 2, 3]]) { g.fillStyle = "#2ee6d6"; g.fillRect(x, y, w, h); g.fillStyle = "#b8fff6"; g.fillRect(x, y, 1, h - 1); } });
 const atlasTex = new THREE.CanvasTexture(atlas); atlasTex.magFilter = THREE.NearestFilter; atlasTex.minFilter = THREE.NearestFilter; atlasTex.encoding = THREE.sRGBEncoding;
 const fireCanvas = document.createElement("canvas"); fireCanvas.width = 64; fireCanvas.height = 16;
 {
@@ -206,6 +210,9 @@ const TYPES = [null,
   { id: "lamp", name: "Lamp", shape: "cube", faces: "lamp", glow: true },
   { id: "fire", name: "Fire", shape: "fire" },
   { id: "tnt", name: "TNT", shape: "cube", faces: ["tntSide", "tntSide", "tntTop", "tntTop", "tntSide", "tntSide"] },
+  { id: "deep", name: "Deep rock", shape: "cube", faces: "deep" },
+  { id: "bedrock", name: "Bedrock", shape: "cube", faces: "bedrock" },
+  { id: "crystal", name: "Crystal", shape: "cube", faces: "crystal", glow: true },
 ];
 const T = {}; TYPES.forEach((t, i) => { if (t) T[t.id] = i; });
 const CUBE = new Uint8Array(TYPES.length); TYPES.forEach((t, i) => { if (t && t.shape === "cube") CUBE[i] = 1; });
@@ -213,8 +220,8 @@ const isCube = t => CUBE[t] === 1;
 const TRAIN = -1;
 
 /* ================= world: chunks of 16 x 16 columns, 48 tall ================= */
-const W = 1024, H = 48, CS = 16, NC = W / CS, SEA = 9;
-const SPAWN = { x: 512, z: 512 }, SPAWN_H = 12;
+const W = 1024, H = 96, CS = 16, NC = W / CS, DEPTH = 40, SEA = 9 + DEPTH;
+const SPAWN = { x: 512, z: 512 }, SPAWN_H = 12 + DEPTH;
 const chunks = new Map();
 const edits = new Map();
 const inWorld = (x, y, z) => x >= 0 && z >= 0 && x < W && z < W && y >= 0 && y < H;
@@ -234,10 +241,10 @@ function heightAt(x, z) {
   const hills = fbm(x / 70, z / 70, 1), mount = Math.max(0, fbm(x / 210, z / 210, 7) - 0.52) * 75, flat = fbm(x / 140, z / 140, 13);
   let h = 5 + hills * 15 * (0.6 + flat * 0.8) + mount;
   const d = Math.hypot(x - SPAWN.x, z - SPAWN.z);
-  h = SPAWN_H + (h - SPAWN_H) * smooth((d - 20) / 18);
+  h = 12 + (h - 12) * smooth((d - 20) / 18);
   const edge = Math.min(x, z, W - 1 - x, W - 1 - z);
   if (edge < 24) h = h * (edge / 24) + 3 * (1 - edge / 24);
-  return Math.max(2, Math.min(H - 6, Math.round(h)));
+  return DEPTH + Math.max(2, Math.min(42, Math.round(h)));
 }
 const STRUCT = new Map();
 {
@@ -259,16 +266,19 @@ function genChunk(cx, cz) {
   const hAt = (x, z) => { const ix = x - x0 + PAD, iz = z - z0 + PAD; if (ix >= 0 && iz >= 0 && ix < SW && iz < SW) { let v = hs[ix + iz * SW]; if (!v) { v = heightAt(x, z); hs[ix + iz * SW] = v; } return v; } return heightAt(x, z); };
   for (let lx = 0; lx < CS; lx++) for (let lz = 0; lz < CS; lz++) {
     const x = x0 + lx, z = z0 + lz, h = hAt(x, z);
-    d[li(lx, 0, lz)] = T.dirt;
-    for (let y = 1; y < h; y++) d[li(lx, y, lz)] = y < h - 3 ? T.stone : T.dirt;
+    d[li(lx, 0, lz)] = T.bedrock;
+    const deepTop = DEPTH - 6 + Math.floor(hash2(x >> 2, z >> 2, 21) * 4);
+    for (let y = 1; y < h; y++) d[li(lx, y, lz)] = y < h - 3 ? (y < deepTop ? T.deep : T.stone) : T.dirt;
+    // crystals: rare, deep down
+    for (let y = 3; y < DEPTH - 8; y++) if (hash2(x * 7 + y, z * 5 - y, 33) < 0.0035) d[li(lx, y, lz)] = T.crystal;
     const beach = h <= SEA + 1;
-    d[li(lx, h, lz)] = h >= 30 ? T.stone : beach ? T.sand : T.grass;
+    d[li(lx, h, lz)] = h >= 30 + DEPTH ? T.stone : beach ? T.sand : T.grass;
     for (let y = h + 1; y <= SEA; y++) d[li(lx, y, lz)] = T.water;
     if (!beach && h < 30 && hash2(x, z, 5) < 0.045 && Math.hypot(x - SPAWN.x, z - SPAWN.z) > 18) d[li(lx, h + 1, lz)] = T.flower;
   }
   for (let x = x0 - 3; x < x0 + CS + 3; x++) for (let z = z0 - 3; z < z0 + CS + 3; z++) {
     if (!treeAt(x, z) || x < 3 || z < 3 || x > W - 4 || z > W - 4 || Math.hypot(x - SPAWN.x, z - SPAWN.z) < 22) continue;
-    const g = hAt(x, z); if (g <= SEA + 1 || g >= 28) continue;
+    const g = hAt(x, z); if (g <= SEA + 1 || g >= 28 + DEPTH) continue;
     const trunk = 4 + Math.floor(hash2(x, z, 3) * 3);
     const put = (wx, wy, wz, t, onlyAir) => { const lx = wx - x0, lz = wz - z0; if (lx < 0 || lz < 0 || lx >= CS || lz >= CS || wy >= H) return; const i = li(lx, wy, lz); if (onlyAir && d[i] && d[i] !== T.flower) return; d[i] = t; };
     for (let y = 1; y <= trunk; y++) put(x, g + y, z, T.log);
@@ -284,7 +294,8 @@ function genChunk(cx, cz) {
     if (x < x0 || z < z0 || x >= x0 + CS || z >= z0 + CS) continue;
     const i = li(x - x0, +p[1], z - z0); d[i] = v.t; if (v.r) rot.set(i, v.r); else rot.delete(i);
   }
-  return { cx, cz, d, rot, mesh: null, dirty: true };
+  let top = 0; for (let i = d.length - 1; i >= 0; i--) if (d[i]) { top = Math.floor(i / (CS * CS)); break; }
+  return { cx, cz, d, rot, top, mesh: null, dirty: true };
 }
 function chunkAt(cx, cz) {
   if (cx < 0 || cz < 0 || cx >= NC || cz >= NC) return null;
@@ -298,7 +309,7 @@ function markDirty(cx, cz) { const c = chunks.get(cx + "," + cz); if (c) c.dirty
 function set(x, y, z, t, r = 0) {
   if (!inWorld(x, y, z)) return;
   const c = chunkAt(x >> 4, z >> 4), i = li(x & 15, y, z & 15);
-  c.d[i] = t; if (r) c.rot.set(i, r); else c.rot.delete(i);
+  c.d[i] = t; if (r) c.rot.set(i, r); else c.rot.delete(i); if (t && y > c.top) c.top = y;
   edits.set(ekey(x, y, z), { t, r });
   c.dirty = true;
   if ((x & 15) === 0) markDirty((x >> 4) - 1, z >> 4); if ((x & 15) === 15) markDirty((x >> 4) + 1, z >> 4);
@@ -323,7 +334,7 @@ const FACES = [
   { n: [0, 0, 1], c: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], s: 0.7 },
   { n: [0, 0, -1], c: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], s: 0.7 },
 ];
-function tileUV(name) { const i = TILE[name], e = 0.02 / 64; const u0 = (i % 4) / 4 + e, v1 = 1 - Math.floor(i / 4) / 4 - e, u1 = u0 + 0.25 - 2 * e, v0 = v1 - 0.25 + 2 * e; return [u0, v0, u1, v1]; }
+function tileUV(name) { const i = TILE[name], e = 0.02 / 64; const u0 = (i % 4) / 4 + e, v1 = 1 - Math.floor(i / 4) / 8 - e, u1 = u0 + 0.25 - 2 * e, v0 = v1 - 0.125 + 2 * e; return [u0, v0, u1, v1]; }
 const UVS = {}; for (const n in TILE) UVS[n] = tileUV(n);
 class Buf {
   constructor() { this.p = []; this.n = []; this.u = []; this.c = []; this.i = []; }
@@ -339,7 +350,7 @@ function disposeMesh(c) { if (c.mesh) { scene.remove(c.mesh); c.mesh.traverse(o 
 function buildChunkMesh(c) {
   const solid = new Buf(), glow = new Buf(), cut = new Buf(), water = new Buf(), fire = new Buf();
   const x0 = c.cx * CS, z0 = c.cz * CS, d = c.d;
-  for (let y = 0; y < H; y++) for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
+  for (let y = 0, yEnd = Math.min(H - 1, c.top + 1); y <= yEnd; y++) for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
     const t = d[li(lx, y, lz)]; if (!t) continue;
     const tp = TYPES[t], x = x0 + lx, z = z0 + lz;
     if (tp.shape === "cube") {
@@ -483,7 +494,7 @@ function poseHero() {
   HP.armL.rotation.z = P.fly ? -1.2 : 0; HP.armR.rotation.z = P.fly ? 1.2 : 0;
   if (!P.onGround && !P.fly && !inWater()) { HP.legL.rotation.x = 0.5; HP.legR.rotation.x = -0.3; }
   hero.rotation.x = P.fly ? Math.min(0.5, speed / 18) : 0;
-  const gy = topY(Math.floor(P.x), Math.floor(P.z)) + 1.01;
+  let gy = 0; for (let y = Math.min(H - 1, Math.floor(P.y + 0.01)); y >= 0; y--) if (isCube(get(Math.floor(P.x), y, Math.floor(P.z)))) { gy = y + 1.01; break; }
   blob.position.set(P.x, gy, P.z); blob.material.opacity = Math.max(0, 0.3 - (P.y - gy) * 0.04);
 }
 
@@ -556,7 +567,7 @@ function spawnPart(pos, col, sp, life, geo = pGeo, grav = 22, grow = false) {
 }
 function burstAt(x, y, z, cols, n = 8, sp = 4) { for (let i = 0; i < n; i++) spawnPart(new THREE.Vector3(x + 0.5 + (Math.random() - 0.5) * 0.6, y + 0.5, z + 0.5 + (Math.random() - 0.5) * 0.6), cols[i % cols.length], sp, sp > 8 ? 1 : 0.6); }
 function smoke(pos) { spawnPart(pos, 0xf2f0f6, 0.3, 1.4, puffGeo, -0.4, true); }
-const PCOL = { grass: 0x5cb84a, dirt: 0x9a6a43, sand: 0xe8d49a, stone: 0x8d8a96, brick: 0xb84a32, log: 0x6b4a2e, leaves: 0x3f8f3a, water: 0x3f86d8, flower: 0xff6a8a, rail: 0xb7b9c6, lamp: 0xffd36b, fire: 0xffa23a, tnt: 0xf2c230 };
+const PCOL = { grass: 0x5cb84a, dirt: 0x9a6a43, sand: 0xe8d49a, stone: 0x8d8a96, brick: 0xb84a32, log: 0x6b4a2e, leaves: 0x3f8f3a, water: 0x3f86d8, flower: 0xff6a8a, rail: 0xb7b9c6, lamp: 0xffd36b, fire: 0xffa23a, tnt: 0xf2c230, deep: 0x55525e, bedrock: 0x2c2a32, crystal: 0x2ee6d6 };
 let shake = 0;
 
 /* ================= TNT and fire ================= */
@@ -616,7 +627,7 @@ function tap(cx, cy) {
   if (Math.hypot(h.x + 0.5 - P.x, h.y + 0.5 - (P.y + 1), h.z + 0.5 - P.z) > REACH) { toast("Too far away. Walk closer to build there"); return; }
   if (tool === "break") {
     if (h.t === T.tnt) { ignite(h.x, h.y, h.z, 2.2); return; }
-    if (h.y === 0) { toast("The bottom layer can't be broken"); return; }
+    if (h.t === T.bedrock || h.y === 0) { toast("That's bedrock, the bottom of the world"); return; }
     set(h.x, h.y, h.z, 0); sfx.dig(); burstAt(h.x, h.y, h.z, [PCOL[TYPES[h.t].id]], 8);
     const up = get(h.x, h.y + 1, h.z); if (up && !isCube(up) && up !== T.water) set(h.x, h.y + 1, h.z, 0);
     return;
@@ -653,13 +664,17 @@ let saveTimer = null;
 function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 800); }
 function save() {
   const d = []; for (const [k, v] of edits) d.push(k, v.t, v.r || 0);
-  store.set("land:world3", JSON.stringify({ v: 3, d, carts: carts.map(c => [c.x, c.y, c.z, c.dx, c.dz, c.color]), p: [+P.x.toFixed(2), +P.y.toFixed(2), +P.z.toFixed(2), P.fly ? 1 : 0, +cam.yaw.toFixed(2)] }));
+  store.set("land:world3", JSON.stringify({ v: 4, d, carts: carts.map(c => [c.x, c.y, c.z, c.dx, c.dz, c.color]), p: [+P.x.toFixed(2), +P.y.toFixed(2), +P.z.toFixed(2), P.fly ? 1 : 0, +cam.yaw.toFixed(2)] }));
 }
 function load() {
   try {
     const raw = store.get("land:world3");
     if (raw) {
       const s = JSON.parse(raw);
+      if (s.v === 3) { // the world used to be 40 blocks shallower
+        for (let i = 0; i < s.d.length; i += 3) { const q = s.d[i].split(","); s.d[i] = q[0] + "," + (+q[1] + DEPTH) + "," + q[2]; }
+        if (s.carts) for (const c of s.carts) c[1] += DEPTH; if (s.p) s.p[1] += DEPTH;
+      }
       for (let i = 0; i < s.d.length; i += 3) { const k = s.d[i], t = s.d[i + 1]; edits.set(k, { t, r: s.d[i + 2] }); if (t === T.lamp) lamps.add(k); else lamps.delete(k); if (t === T.fire) fires.add(k); }
       if (s.p) { P.x = s.p[0]; P.y = s.p[1]; P.z = s.p[2]; P.fly = !!s.p[3]; if (s.p[4] != null) cam.yaw = s.p[4]; }
       return s.carts || [];
@@ -740,7 +755,7 @@ function keyRelease() { if (keys.size) keysWereDown = true; else if (keysWereDow
 
 /* ================= palette and menus ================= */
 const pal = $("#palette");
-const PALETTE = [T.grass, T.dirt, T.sand, T.stone, T.brick, T.log, T.leaves, T.water, T.flower, T.rail, TRAIN, T.lamp, T.fire, T.tnt];
+const PALETTE = [T.grass, T.dirt, T.sand, T.stone, T.brick, T.log, T.leaves, T.water, T.flower, T.rail, TRAIN, T.lamp, T.fire, T.tnt, T.deep, T.crystal];
 function trainIcon(g) { g.fillStyle = "#2ec4b6"; g.fillRect(2, 6, 9, 5); g.fillRect(9, 3, 5, 8); g.fillStyle = "#1c2a40"; g.fillRect(10, 4, 3, 2); g.fillStyle = "#2a2630"; g.fillRect(4, 3, 2, 3); g.fillRect(1, 11, 14, 1); g.fillStyle = "#b7b9c6"; g.fillRect(3, 12, 3, 3); g.fillRect(10, 12, 3, 3); g.fillStyle = "#fff2c2"; g.fillRect(1, 7, 1, 2); }
 PALETTE.forEach(idx => {
   const name = idx === TRAIN ? "Train" : TYPES[idx].name;
@@ -762,10 +777,12 @@ function setTool(t) {
 $("#toolBtn").onclick = () => setTool(tool === "build" ? "break" : "build");
 setTool("build");
 let night = store.get("land:night") === "1";
+let dayLight = [0.85, 0.75], under = 0;
+function shadeLights() { const k = 1 - under * 0.72; hemi.intensity = dayLight[0] * k; sun.intensity = dayLight[1] * k * k; }
 function applyDay() {
   const sky = night ? 0x141836 : 0x9fd6f5;
   scene.background = new THREE.Color(sky); scene.fog.color.set(sky); document.body.style.background = night ? "#141836" : "#7ec8f0";
-  hemi.intensity = night ? 0.18 : 0.85; sun.intensity = night ? 0.06 : 0.75;
+  dayLight = night ? [0.18, 0.06] : [0.85, 0.75]; shadeLights();
   $("#dayLbl").textContent = night ? "Day" : "Night"; $("#dayBtn").setAttribute("aria-label", night ? "Switch to day" : "Switch to night");
 }
 $("#dayBtn").onclick = () => { night = !night; store.set("land:night", night ? "1" : "0"); applyDay(); };
@@ -817,6 +834,9 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; animT += dt;
   keyInput(); keyRelease();
   physics(dt); poseHero(); placeCamera();
+  { const fx = Math.floor(P.x), fz = Math.floor(P.z); let roof = 0; for (let y = Math.floor(P.y + 2); y < H; y++) if (isCube(get(fx, y, fz))) { roof = y; break; }
+    const want = roof ? Math.max(0, Math.min(1, (heightAt(fx, fz) - P.y - 1.5) / 5)) : 0;
+    if (Math.abs(want - under) > 0.005) { under += (want - under) * Math.min(1, dt * 2.5); shadeLights(); } }
   updateChunks(6);
   updateCarts(dt);
   for (const [k, s] of fuses) { const [x, y, z] = k.split(",").map(Number); if (get(x, y, z) !== T.tnt) { fuses.delete(k); continue; } if (s - dt <= 0) { fuses.delete(k); explode(x, y, z); } else fuses.set(k, s - dt); }
