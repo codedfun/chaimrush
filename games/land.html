@@ -50,6 +50,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .acts button svg{width:26px;height:26px}
 .jump{width:84px;height:84px;background:rgb(255 106 85/.6);grid-column:2;grid-row:2}
 .down{width:62px;height:62px;background:rgb(10 8 30/.45);grid-column:1;grid-row:2}
+.view{width:58px;height:58px;background:rgb(10 8 30/.45);grid-column:1;grid-row:1;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.view svg{width:22px!important;height:22px!important}
 .fly{width:58px;height:58px;background:rgb(10 8 30/.45);grid-column:2;grid-row:1;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0}
 .fly svg{width:22px!important;height:22px!important}
 .fly.on{background:rgb(56 168 255/.75);border-color:#bfe6ff}
@@ -96,6 +98,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 <div class="stick" id="stick" aria-label="Move"><i></i></div>
 <div class="acts">
+  <button class="view" id="viewBtn" aria-label="Switch to first person view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg><span id="viewLbl">3rd</span></button>
   <button class="fly" id="flyBtn" aria-label="Fly" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13c4-1 6-4 9-8 3 4 5 7 9 8-4 0-6 1-9 6-3-5-5-6-9-6z"/></svg>Fly</button>
   <button class="down" id="downBtn" aria-label="Fly down" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
   <button class="jump" id="jumpBtn" aria-label="Jump"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button>
@@ -111,7 +114,7 @@ button{font:inherit;color:inherit;cursor:pointer}
     <p>Walk, fly and build anywhere in a huge world of hills, mountains, lakes and forests.</p>
     <ul>
       <li>Use the <b>joystick</b> to walk and the <b>up arrow</b> to jump. You hop up single steps by yourself.</li>
-      <li><b>Drag</b> anywhere to look around. <b>Pinch</b> to move the camera closer or further.</li>
+      <li><b>Drag</b> anywhere to look around. <b>Pinch</b> to move the camera closer or further. Tap the <b>eye</b> button to switch between seeing your explorer (3rd) and seeing through their eyes (1st), handy in tunnels.</li>
       <li>Tap <b>Fly</b> (or double-tap jump) to fly. Hold the up arrow to rise and the down arrow to sink.</li>
       <li>Pick a block at the bottom and <b>tap</b> a block near you to build on it. Tap the <b>Build</b> button to switch to <b>Break</b>.</li>
       <li>Switch to <b>Break</b> and dig straight down or sideways to make tunnels. The ground goes about 50 blocks deep, with dark deep rock and glowing <b>crystals</b> near the bottom.</li>
@@ -583,7 +586,17 @@ function poseHero() {
 
 /* ================= camera: third person, follows behind ================= */
 const cam = { yaw: 0, pitch: 0.38, dist: 6.5 };
+let firstPerson = store.get("land:view") === "1";
 function placeCamera() {
+  if (firstPerson) {
+    // first person: the camera is your eyes, and your explorer is hidden so nothing blocks the view
+    cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch));
+    const ex = P.x, ey = P.y + 1.6, ez = P.z;
+    camera.position.set(ex, ey, ez);
+    camera.lookAt(ex - Math.sin(cam.yaw) * Math.cos(cam.pitch), ey - Math.sin(cam.pitch), ez - Math.cos(cam.yaw) * Math.cos(cam.pitch));
+    hero.visible = false; blob.visible = false; return;
+  }
+  blob.visible = true;
   cam.pitch = Math.max(-0.6, Math.min(1.35, cam.pitch)); cam.dist = Math.max(2.5, Math.min(16, cam.dist));
   const tx = P.x, ty = P.y + 1.5, tz = P.z;
   const dx = Math.sin(cam.yaw) * Math.cos(cam.pitch), dy = Math.sin(cam.pitch), dz = Math.cos(cam.yaw) * Math.cos(cam.pitch);
@@ -825,6 +838,7 @@ addEventListener("keydown", e => {
   const k = e.key.toLowerCase(); keys.add(k);
   if (k === " ") { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastJumpTap < 300) toggleFly(true); lastJumpTap = now; } }
   if (k === "f" && !e.repeat) toggleFly(true);
+  if (k === "v" && !e.repeat) toggleView();
 });
 addEventListener("keyup", e => keys.delete(e.key.toLowerCase()));
 function keyInput() {
@@ -907,7 +921,10 @@ function updateChunks(budgetMs) {
 
 /* ================= start ================= */
 const savedCarts = load();
-applyDay(); syncFly();
+function syncView() { $("#viewLbl").textContent = firstPerson ? "1st" : "3rd"; $("#viewBtn").setAttribute("aria-label", firstPerson ? "Switch to third person view" : "Switch to first person view"); }
+function toggleView() { firstPerson = !firstPerson; store.set("land:view", firstPerson ? "1" : "0"); if (firstPerson) cam.pitch = Math.min(cam.pitch, 0.6) - 0.3; else cam.pitch = 0.38; syncView(); toast(firstPerson ? "First person: you see through your explorer's eyes" : "Third person: you see your explorer"); }
+$("#viewBtn").addEventListener("click", () => { audio(); toggleView(); });
+applyDay(); syncFly(); syncView();
 for (let i = 0; i < 80 && updateChunks(500) > 0; i++);
 if (!savedCarts) startCarts(); else for (const c of savedCarts) addCart(c[0], c[1], c[2], c[3], c[4], c[5]);
 if (collides(P.x, P.y, P.z)) P.y = topY(Math.floor(P.x), Math.floor(P.z)) + 1;
