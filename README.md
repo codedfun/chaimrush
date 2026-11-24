@@ -45,6 +45,10 @@ The **More games** button at the bottom of the start screen opens `games/`, a pa
 
 On iPhone or iPad, open the game in Safari, tap **Share**, then **Add to Home Screen**. It appears as **Chaim Rush** with its own icon and opens full screen. The start screen shows these steps too (and Android's), and hides them once you're playing from the Home Screen.
 
+## Playing offline
+
+After the site has been opened once with a connection, it works with no Wi-Fi or data at all, including from the Home Screen icon. `sw.js` saves the games, the 3D engine and the fonts on the phone; when online it still fetches the newest version (waiting at most 2.5 seconds for a page) and refreshes the saved copy in the background.
+
 ## Running it
 
-The game is a single file, `index.html`, with no build step; `manifest.webmanifest` and the icon PNGs set the app's name and Home Screen icon. It loads the three.js 3D engine (version 0.149.0) from the jsDelivr CDN and is served by GitHub Pages from the `main` branch.
+The game is a single file, `index.html`, with no build step; `manifest.webmanifest` and the icon PNGs set the app's name and Home Screen icon. The three.js 3D engine (version 0.149.0, MIT license) is in `vendor/`, and the Bungee and Rubik fonts (SIL Open Font License) are in `fonts/`, so nothing is loaded from other websites. It's served by GitHub Pages from the `main` branch.

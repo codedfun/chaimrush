@@ -12,9 +12,7 @@
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="../icon-192.png">
 <link rel="manifest" href="../manifest.webmanifest">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../fonts/fonts.css">
 <style>
 /* Layout: one column of game cards under the Chaim Rush header; dusk-city palette shared with the main game. */
 :root{
@@ -77,5 +75,6 @@ header p{margin:8px 0 0;color:var(--muted);font-size:15px}
 let u = 0; try { u = +(localStorage.getItem("quest:unlocked") || 0); } catch {}
 if (u > 1) document.getElementById("best-quest").textContent = `Levels unlocked: ${u} of 3`;
 </script>
+<script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("../sw.js", { scope: "../" }).catch(() => {}));</script>
 </body>
 </html>
