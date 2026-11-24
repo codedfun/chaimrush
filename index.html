@@ -1396,7 +1396,7 @@ function smashFx(o) {
 }
 
 /* ---------- boomerang ---------- */
-const BOOM_COOLDOWN = 10;
+const BOOM_COOLDOWN = 3;
 let hudCool = -1;
 function hudThrow() {
   const ready = B.state === "held" && B.cool <= 0, secs = Math.ceil(B.cool);

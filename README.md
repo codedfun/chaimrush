@@ -7,7 +7,7 @@ A 3D endless runner for phones. Put a face on the runner and a face on the chase
 - **Swipe left or right** to switch lanes.
 - **Swipe up** to jump over barriers.
 - **Swipe down** to slide under gates.
-- **Tap the screen** (or the boomerang button) to throw your boomerang; **double-tap** to ride a hoverboard down your lane. It destroys the first train, barrier or gate it hits, picks up coins on the way, and flies back to your hand. It can be thrown once every 10 seconds; the button shows the countdown.
+- **Tap the screen** (or the boomerang button) to throw your boomerang; **double-tap** to ride a hoverboard down your lane. It destroys the first train, barrier or gate it hits, picks up coins on the way, and flies back to your hand. It can be thrown once every 3 seconds; the button shows the countdown.
 - **Ramps** lead up onto some trains. Run up them to travel along the train roofs and grab the coins up there.
 - **Bridges** cross over the tracks every so often. A parked train with a ramp sits in front of each one: run up the ramp, along the roof, and jump from the end of the train onto the bridge. Up top are lines of coins and usually a bonus (a jetpack, magnet or jump boots, and sometimes a hoverboard or even a key). Run off the far end to drop back to the tracks, or just run underneath.
 - Only running into an obstacle counts. If your feet just clip the top of a barricade or train, you land on it and keep going.
