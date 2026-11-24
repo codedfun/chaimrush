@@ -55,6 +55,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .fly{width:58px;height:58px;background:rgb(10 8 30/.45);grid-column:2;grid-row:1;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0}
 .fly svg{width:22px!important;height:22px!important}
 .fly.on{background:rgb(56 168 255/.75);border-color:#bfe6ff}
+.jump.exit{background:rgb(46 196 182/.75)}
 .acts button.on2{background:rgb(255 255 255/.35)}
 .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgb(14 11 38/.6);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
 .card{background:var(--panel);border-radius:22px;padding:20px;width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;box-shadow:0 18px 40px rgb(0 0 0/.4);margin:auto}
@@ -118,6 +119,7 @@ button{font:inherit;color:inherit;cursor:pointer}
       <li>Tap <b>Fly</b> (or double-tap jump) to fly. Hold the up arrow to rise and the down arrow to sink.</li>
       <li>Pick a block at the bottom and <b>tap</b> a block near you to build on it. Tap the <b>Build</b> button to switch to <b>Break</b>.</li>
       <li>Switch to <b>Break</b> and dig straight down or sideways to make tunnels. The ground goes about 50 blocks deep, with dark deep rock and glowing <b>crystals</b> near the bottom.</li>
+      <li>Walk up to a train and <b>tap it</b> to get in and drive it: joystick up goes forward, down goes back. Tap the jump button to get out.</li>
       <li>Put a <b>Train</b> on a track and it drives itself. Tap <b>TNT</b> with Break, or put fire next to it, to blow it up.</li>
     </ul>
     <div class="facebox">
@@ -580,6 +582,8 @@ function poseHero() {
   HP.armL.rotation.z = P.fly ? -1.2 : 0; HP.armR.rotation.z = P.fly ? 1.2 : 0;
   if (!P.onGround && !P.fly && !inWater()) { HP.legL.rotation.x = 0.5; HP.legR.rotation.x = -0.3; }
   hero.rotation.x = P.fly ? Math.min(0.5, speed / 18) : 0;
+  if (ride) { hero.rotation.set(ride.mesh.rotation.x, ride.yaw, 0, "YXZ"); HP.legL.rotation.x = HP.legR.rotation.x = -1.45; HP.armL.rotation.x = HP.armR.rotation.x = -1.0; HP.armL.rotation.z = HP.armR.rotation.z = 0; }
+  else hero.rotation.order = "XYZ";
   let gy = 0; for (let y = Math.min(H - 1, Math.floor(P.y + 0.01)); y >= 0; y--) if (isCube(get(Math.floor(P.x), y, Math.floor(P.z)))) { gy = y + 1.01; break; }
   blob.position.set(P.x, gy, P.z); blob.material.opacity = Math.max(0, 0.3 - (P.y - gy) * 0.04);
 }
@@ -624,13 +628,48 @@ function makeEngine(ci) {
   add(new THREE.CylinderGeometry(0.07, 0.09, 0.24, 10), darkMat, 0, 0.74, 0.3);
   add(new THREE.CylinderGeometry(0.07, 0.07, 0.04, 10), headMat, 0, 0.42, 0.43).rotation.x = Math.PI / 2;
   for (const sx of [-0.3, 0.3]) for (const sz of [-0.28, 0.26]) add(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 12), metalMat, sx, 0.12, sz).rotation.z = Math.PI / 2;
+  g.scale.setScalar(1.35); // big enough to ride in
   return g;
 }
 let carts = [];
 const isRail = (x, y, z) => get(x, y, z) === T.rail;
-function nextRail(c) {
+function nextRail(c, noBack) {
   const tryDir = (dx, dz) => { for (const dy of [0, 1, -1]) if (isRail(c.x + dx, c.y + dy, c.z + dz)) return { x: c.x + dx, y: c.y + dy, z: c.z + dz, dx, dz }; return null; };
-  return tryDir(c.dx, c.dz) || tryDir(c.dz, -c.dx) || tryDir(-c.dz, c.dx) || tryDir(-c.dx, -c.dz);
+  return tryDir(c.dx, c.dz) || tryDir(c.dz, -c.dx) || tryDir(-c.dz, c.dx) || (noBack ? null : tryDir(-c.dx, -c.dz));
+}
+// turn a train around where it stands (between two track pieces)
+function reverseCart(c) {
+  if (c.next) {
+    const old = { x: c.x, y: c.y, z: c.z }, n = c.next;
+    Object.assign(c, { x: n.x, y: n.y, z: n.z, dx: -n.dx, dz: -n.dz, t: 1 - c.t });
+    c.next = { x: old.x, y: old.y, z: old.z, dx: c.dx, dz: c.dz };
+  } else { c.dx = -c.dx; c.dz = -c.dz; c.t = 0; c.next = nextRail(c, true); }
+}
+/* ---- driving a train yourself ---- */
+let ride = null;
+function enterTrain(c) {
+  ride = c; c.speed = 0; c.back = false; P.fly = false; syncFly(); P.vx = P.vy = P.vz = 0;
+  $("#jumpBtn").setAttribute("aria-label", "Get out of the train"); $("#jumpBtn").classList.add("exit");
+  $("#hint").textContent = "Joystick up: forward. Down: back. Jump button: get out";
+  sfx.horn(); toast("All aboard! You're driving");
+}
+function exitTrain() {
+  const c = ride; if (!c) return; ride = null; c.speed = 0; c.back = false;
+  $("#jumpBtn").classList.remove("exit"); syncFly(); setTool(tool);
+  const px = Math.round(c.mesh.position.x - 0.5), pz = Math.round(c.mesh.position.z - 0.5), sx = Math.abs(c.dz), sz = Math.abs(c.dx);
+  const spots = [[sx, sz], [-sx, -sz], [c.dx, c.dz], [-c.dx, -c.dz]];
+  for (const dy of [0, 1, 2]) for (const [ox, oz] of spots) {
+    const x = px + ox + 0.5, z = pz + oz + 0.5, y = c.y + dy;
+    if (!collides(x, y, z) && isCube(get(Math.floor(x), y - 1, Math.floor(z)))) { P.x = x; P.y = y; P.z = z; P.vx = P.vy = P.vz = 0; return; }
+  }
+  P.x = px + 0.5; P.z = pz + 0.5; P.y = c.y + 1; P.vy = 3;
+}
+function rideTrain(dt) {
+  const c = ride;
+  if (!carts.includes(c)) { ride = null; $("#jumpBtn").classList.remove("exit"); syncFly(); return; }
+  // seated in the cab, facing the way the engine faces
+  const seat = c.mesh.localToWorld(new THREE.Vector3(0, -0.21, -0.2));
+  P.x = seat.x; P.y = seat.y; P.z = seat.z; P.vx = P.vy = P.vz = 0; P.yaw = c.yaw; P.onGround = true;
 }
 function addCart(x, y, z, dx, dz, color) {
   if (!isRail(x, y, z)) return null;
@@ -638,19 +677,30 @@ function addCart(x, y, z, dx, dz, color) {
   const c = { x, y, z, dx, dz, color: ci, t: 0, next: null, mesh: makeEngine(ci), yaw: Math.atan2(dx, dz), puff: 0 };
   c.next = nextRail(c); cartGroup.add(c.mesh); carts.push(c); return c;
 }
-function removeCart(c) { cartGroup.remove(c.mesh); carts = carts.filter(o => o !== c); saveSoon(); }
+function removeCart(c) { if (c === ride) exitTrain(); cartGroup.remove(c.mesh); carts = carts.filter(o => o !== c); saveSoon(); }
 function updateCarts(dt) {
   for (const c of [...carts]) {
-    if (Math.abs(c.x - P.x) > RD * CS + 8 || Math.abs(c.z - P.z) > RD * CS + 8) { c.mesh.visible = false; continue; }
+    if (c !== ride && Math.abs(c.x - P.x) > RD * CS + 8 || Math.abs(c.z - P.z) > RD * CS + 8) { c.mesh.visible = false; continue; }
     c.mesh.visible = true;
     if (!isRail(c.x, c.y, c.z)) { burstAt(c.x, c.y, c.z, [0x2a2630, CART_COLORS[c.color][0]], 10); removeCart(c); continue; }
-    if (!c.next || !isRail(c.next.x, c.next.y, c.next.z)) { c.next = nextRail(c); c.t = 0; }
-    if (c.next) { c.t += 3.2 * dt; while (c.t >= 1 && c.next) { c.t -= 1; Object.assign(c, { x: c.next.x, y: c.next.y, z: c.next.z, dx: c.next.dx, dz: c.next.dz }); c.next = nextRail(c); } }
+    const driven = c === ride;
+    let move = 3.2;
+    if (driven) {
+      // joystick up = the way the engine faces, down = backwards
+      const want = input.mz * 6.5; c.speed += (want - c.speed) * Math.min(1, dt * (Math.abs(want) > Math.abs(c.speed) ? 1.6 : 3));
+      if (Math.abs(c.speed) < 0.02 && !input.mz) c.speed = 0;
+      let phys = c.back ? -c.speed : c.speed;
+      if (phys < -0.05) { reverseCart(c); c.back = !c.back; phys = -phys; }
+      move = Math.max(0, phys);
+    }
+    if (!c.next || !isRail(c.next.x, c.next.y, c.next.z)) { c.next = nextRail(c, driven); c.t = 0; }
+    if (driven && !c.next && move > 0) { c.speed = 0; move = 0; }
+    if (c.next) { c.t += move * dt; while (c.t >= 1 && c.next) { c.t -= 1; Object.assign(c, { x: c.next.x, y: c.next.y, z: c.next.z, dx: c.next.dx, dz: c.next.dz }); c.next = nextRail(c, driven); } if (!c.next) c.t = 0; }
     const n = c.next || c, k = c.next ? c.t : 0;
     c.mesh.position.set(c.x + (n.x - c.x) * k + 0.5, c.y + (n.y - c.y) * k + 0.03, c.z + (n.z - c.z) * k + 0.5);
-    const target = Math.atan2(n.dx, n.dz); let d = target - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); c.yaw += d * Math.min(1, dt * 10);
+    const target = Math.atan2(n.dx, n.dz) + (c.back ? Math.PI : 0); let d = target - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); c.yaw += d * Math.min(1, dt * 10);
     c.mesh.rotation.set(c.next ? -(n.y - c.y) * 0.45 : 0, c.yaw, 0);
-    c.puff -= dt; if (c.puff <= 0) { c.puff = 0.28; smoke(c.mesh.localToWorld(new THREE.Vector3(0, 0.9, 0.3))); }
+    c.puff -= dt * (driven ? 0.5 + Math.abs(c.speed) / 10 : 1); if (c.puff <= 0) { c.puff = 0.28; smoke(c.mesh.localToWorld(new THREE.Vector3(0, 0.9, 0.3))); }
   }
 }
 
@@ -697,9 +747,15 @@ function pickBlock(cx, cy) {
   let n = [0, 1, 0], dist = 0;
   for (let i = 0; i < 200 && dist < 40; i++) {
     const t = inWorld(x, y, z) ? get(x, y, z) : 0;
-    if (t && t !== T.water) {
-      if (cartHit && cartHit.distance < dist + 0.3) break;
-      return { x, y, z, t, n, dist };
+    let hitT = t && t !== T.water, hd = dist, hn = n;
+    if (hitT && t === T.rail) {
+      // tracks are flat: only count a hit on the track itself, so trains standing on it can be tapped
+      const tp = dv.y < 0 ? (y + 0.05 - o.y) / dv.y : -1, hx = o.x + dv.x * tp, hz = o.z + dv.z * tp;
+      if (tp > 0 && hx >= x && hx < x + 1 && hz >= z && hz < z + 1) { hd = tp; hn = [0, 1, 0]; } else hitT = false;
+    }
+    if (hitT) {
+      if (cartHit && cartHit.distance < hd + 0.3) break;
+      return { x, y, z, t, n: hn, dist: hd };
     }
     if (tmx < tmy && tmx < tmz) { x += sx; dist = tmx; tmx += tdx; n = [-sx, 0, 0]; }
     else if (tmy < tmz) { y += sy; dist = tmy; tmy += tdy; n = [0, -sy, 0]; }
@@ -717,7 +773,10 @@ function tap(cx, cy) {
   const h = pickBlock(cx, cy); if (!h) return;
   if (h.cart) {
     if (tool === "break") { burstAt(h.cart.x, h.cart.y, h.cart.z, [CART_COLORS[h.cart.color][0], 0x2a2630], 12); removeCart(h.cart); sfx.dig(); }
-    else { sfx.horn(); toast("Choo choo! Switch to Break to remove a train"); }
+    else if (h.cart === ride) { sfx.horn(); }
+    else if (ride) { sfx.horn(); toast("Get out of this train first"); }
+    else if (Math.hypot(h.cart.mesh.position.x - P.x, h.cart.mesh.position.z - P.z) > 6) { sfx.horn(); toast("Walk up to the train to get in"); }
+    else enterTrain(h.cart);
     return;
   }
   if (Math.hypot(h.x + 0.5 - P.x, h.y + 0.5 - (P.y + 1), h.z + 0.5 - P.z) > REACH) { toast("Too far away. Walk closer to build there"); return; }
@@ -811,8 +870,8 @@ function hold(id, on, off) {
   const up = e => { if (!active.delete(e.pointerId)) return; if (!active.size) { el.classList.remove("on2"); off(); } };
   el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("lostpointercapture", up);
 }
-function toggleFly(msg) { P.fly = !P.fly; P.vy = P.fly ? 4 : 0; syncFly(); if (msg) toast(P.fly ? "Flying. Hold up to rise, down to sink" : "Walking"); saveSoon(); }
-hold("#jumpBtn", () => { const now = performance.now(); if (now - lastJumpTap < 300) toggleFly(true); lastJumpTap = now; input.jump = true; }, () => input.jump = false);
+function toggleFly(msg) { if (ride) exitTrain(); P.fly = !P.fly; P.vy = P.fly ? 4 : 0; syncFly(); if (msg) toast(P.fly ? "Flying. Hold up to rise, down to sink" : "Walking"); saveSoon(); }
+hold("#jumpBtn", () => { if (ride) { exitTrain(); return; } const now = performance.now(); if (now - lastJumpTap < 300) toggleFly(true); lastJumpTap = now; input.jump = true; }, () => input.jump = false);
 hold("#downBtn", () => input.down = true, () => input.down = false);
 function syncFly() { $("#flyBtn").classList.toggle("on", P.fly); $("#flyBtn").setAttribute("aria-pressed", String(P.fly)); $("#downBtn").hidden = !P.fly; $("#jumpBtn").setAttribute("aria-label", P.fly ? "Fly up" : "Jump"); }
 $("#flyBtn").addEventListener("click", () => { audio(); toggleFly(true); });
@@ -836,6 +895,7 @@ cv.addEventListener("contextmenu", e => e.preventDefault());
 const keys = new Set();
 addEventListener("keydown", e => {
   const k = e.key.toLowerCase(); keys.add(k);
+  if (k === " " && ride) { e.preventDefault(); if (!e.repeat) exitTrain(); return; }
   if (k === " ") { e.preventDefault(); if (!e.repeat) { const now = performance.now(); if (now - lastJumpTap < 300) toggleFly(true); lastJumpTap = now; } }
   if (k === "f" && !e.repeat) toggleFly(true);
   if (k === "v" && !e.repeat) toggleView();
@@ -933,7 +993,8 @@ let last = performance.now(), animT = 0, lightT = 0, fireT = 0, slow = 0, frames
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; animT += dt;
   keyInput(); keyRelease();
-  physics(dt); poseHero(); placeCamera();
+  if (ride) rideTrain(dt); else physics(dt);
+  poseHero(); placeCamera();
   { const fx = Math.floor(P.x), fz = Math.floor(P.z); let roof = 0; for (let y = Math.floor(P.y + 2); y < H; y++) if (isCube(get(fx, y, fz))) { roof = y; break; }
     const want = roof ? Math.max(0, Math.min(1, (heightAt(fx, fz) - P.y - 1.5) / 5)) : 0;
     if (Math.abs(want - under) > 0.005) { under += (want - under) * Math.min(1, dt * 2.5); shadeLights(); } }
