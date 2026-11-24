@@ -544,7 +544,7 @@ const inWater = () => get(Math.floor(P.x), Math.floor(P.y + 0.4), Math.floor(P.z
 const input = { mx: 0, mz: 0, jump: false, down: false };
 let lastJumpTap = 0;
 function physics(dt) {
-  const water = inWater(), sp = P.fly ? 10 : water ? 2.6 : 4.4;
+  const water = inWater(), sp = P.fly ? 10 : water ? 3.4 : 6.6;
   const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = -Math.sin(cam.yaw);
   let wx = rx * input.mx + fx * input.mz, wz = rz * input.mx + fz * input.mz;
   const len = Math.hypot(wx, wz); if (len > 1) { wx /= len; wz /= len; }
