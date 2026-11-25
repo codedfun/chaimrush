@@ -41,6 +41,13 @@ h1 span{color:var(--gold)}
 .disc.r{background:radial-gradient(circle at 35% 30%,#ff9a85,var(--coral) 55%,#c84632)}
 .disc.y{background:radial-gradient(circle at 35% 30%,#ffe28a,var(--gold) 55%,#c9921a)}
 @keyframes drop{from{transform:translateY(-600%)}to{transform:none}}
+.board.play{cursor:pointer}
+.cell.win .disc{box-shadow:0 0 0 4px #fff,0 0 18px #fff}
+.status{font-family:var(--display);font-size:20px;text-align:center;min-height:1.3em;margin:0}
+.status .r{color:var(--coral)} .status .y{color:var(--gold)}
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.controls button{border:0;border-radius:999px;background:var(--panel2);padding:10px 16px;font-weight:700;font-size:14px}
+.controls button.on{background:var(--teal);color:#06231f}
 .start{border:0;border-radius:18px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:26px;padding:15px 40px;box-shadow:0 6px 0 #b8402f}
 .start:active{transform:translateY(3px);box-shadow:0 3px 0 #b8402f}
 .how{color:var(--muted);font-size:13.5px;text-align:center;margin:0;max-width:340px;line-height:1.45}
@@ -66,6 +73,12 @@ h1 span{color:var(--gold)}
   <h1>Four in<br><span>a Row</span></h1>
   <p class="sub">Drop your discs. Get four in a line to win.</p>
   <div class="board" id="board" aria-hidden="true"></div>
+  <p class="status" id="status" hidden aria-live="polite"></p>
+  <div class="controls" id="controls" hidden>
+    <button id="vsCpu" class="on" aria-pressed="true">Vs computer</button>
+    <button id="vs2" aria-pressed="false">2 players</button>
+    <button id="again">New game</button>
+  </div>
   <button class="start" id="startBtn">Start playing</button>
   <p class="how">Take turns dropping red and yellow discs into the board. The first to line up four across, down or diagonally wins.</p>
 </div>
@@ -86,14 +99,14 @@ const $ = s => document.querySelector(s);
 // a board that fills itself up for show
 const board = $("#board"), cells = [];
 for (let i = 0; i < 42; i++) { const c = document.createElement("div"); c.className = "cell"; board.appendChild(c); cells.push(c); }
-const heights = [0, 0, 0, 0, 0, 0, 0]; let turn = 0, drops = 0;
+const heights = [0, 0, 0, 0, 0, 0, 0]; let demoTurn = 0, drops = 0;
 function dropOne() {
   if (drops >= 16) { cells.forEach(c => c.replaceChildren()); heights.fill(0); drops = 0; }
   let col; do { col = Math.floor(Math.random() * 7); } while (heights[col] >= 6);
   const row = 5 - heights[col]++, d = document.createElement("i");
-  d.className = "disc " + (turn++ % 2 ? "y" : "r"); cells[row * 7 + col].appendChild(d); drops++;
+  d.className = "disc " + (demoTurn++ % 2 ? "y" : "r"); cells[row * 7 + col].appendChild(d); drops++;
 }
-if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(dropOne, 650); else for (let i = 0; i < 10; i++) dropOne();
+const demo = matchMedia("(prefers-reduced-motion: reduce)").matches ? (() => { for (let i = 0; i < 10; i++) dropOne(); return 0; })() : setInterval(dropOne, 650);
 
 const KEY = [54, 55, 54, 55]; // the Chaim code
 const open = () => { $("#sheet").hidden = false; $("#err").textContent = ""; $("#code").value = ""; setTimeout(() => $("#code").focus(), 50); };
@@ -109,11 +122,66 @@ $("#form").addEventListener("submit", e => {
     try { sessionStorage.setItem("c4:ok", "1"); } catch {}
     location.replace("movies.html");
   } else {
-    $("#err").textContent = "Not a real Chaim. Try again.";
-    const f = $("#form"); f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
-    $("#code").value = ""; $("#code").focus();
+    close(); startGame(); // not the code: just play a normal game
   }
 });
+
+/* ===== the real game: you are red, the computer (or a friend) is yellow ===== */
+const COLS = 7, ROWS = 6;
+let grid, turn, over, vsCpu = true, busy = false;
+const at = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS ? grid[r][c] : -1;
+function lineFrom(g, r, c) {
+  const p = g[r][c]; if (!p) return null;
+  for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+    const cells = [[r, c]];
+    for (const s of [1, -1]) for (let k = 1; k < 4; k++) { const rr = r + dr * k * s, cc = c + dc * k * s; if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS || g[rr][cc] !== p) break; cells.push([rr, cc]); }
+    if (cells.length >= 4) return cells;
+  }
+  return null;
+}
+const openRow = (g, c) => { for (let r = ROWS - 1; r >= 0; r--) if (!g[r][c]) return r; return -1; };
+function startGame() {
+  clearInterval(demo); $("#startBtn").hidden = true; $(".how").hidden = true; $("#status").hidden = false; $("#controls").hidden = false;
+  grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0)); turn = 1; over = false; busy = false;
+  cells.forEach(c => { c.replaceChildren(); c.classList.remove("win"); });
+  board.classList.add("play"); board.removeAttribute("aria-hidden"); board.setAttribute("aria-label", "Game board. Tap a column to drop a disc");
+  say();
+}
+function say(text) {
+  const st = $("#status");
+  if (text) { st.innerHTML = text; return; }
+  st.innerHTML = vsCpu ? (turn === 1 ? '<span class="r">Your turn</span>' : '<span class="y">Computer is thinking…</span>')
+                       : (turn === 1 ? '<span class="r">Red\'s turn</span>' : '<span class="y">Yellow\'s turn</span>');
+}
+function drop(c) {
+  const r = openRow(grid, c); if (r < 0 || over) return false;
+  grid[r][c] = turn; const d = document.createElement("i"); d.className = "disc " + (turn === 1 ? "r" : "y"); cells[r * COLS + c].appendChild(d);
+  const win = lineFrom(grid, r, c);
+  if (win) { over = true; win.forEach(([rr, cc]) => cells[rr * COLS + cc].classList.add("win"));
+    say(vsCpu ? (turn === 1 ? '<span class="r">You win!</span>' : '<span class="y">The computer wins</span>') : (turn === 1 ? '<span class="r">Red wins!</span>' : '<span class="y">Yellow wins!</span>')); return true; }
+  if (grid[0].every(Boolean)) { over = true; say("It's a draw"); return true; }
+  turn = 3 - turn; say(); return true;
+}
+function cpuMove() {
+  const cols = [3, 2, 4, 1, 5, 0, 6].filter(c => openRow(grid, c) >= 0);
+  const wins = p => cols.find(c => { const r = openRow(grid, c); grid[r][c] = p; const w = !!lineFrom(grid, r, c); grid[r][c] = 0; return w; });
+  let c = wins(2); if (c !== undefined) return c;          // win if it can
+  c = wins(1); if (c !== undefined) return c;              // block you
+  const safe = cols.filter(cc => { const r = openRow(grid, cc); if (r === 0) return true; grid[r][cc] = 2; grid[r - 1][cc] = 1; const bad = !!lineFrom(grid, r - 1, cc); grid[r - 1][cc] = 0; grid[r][cc] = 0; return !bad; });
+  const pick = safe.length ? safe : cols;
+  return Math.random() < 0.75 ? pick[0] : pick[Math.floor(Math.random() * pick.length)];
+}
+board.addEventListener("click", e => {
+  if (!board.classList.contains("play") || over || busy || (vsCpu && turn === 2)) return;
+  const cell = e.target.closest(".cell"); if (!cell) return;
+  const c = cells.indexOf(cell) % COLS;
+  if (!drop(c)) return;
+  if (vsCpu && !over) { busy = true; setTimeout(() => { busy = false; if (!over) drop(cpuMove()); }, 550); }
+});
+const setMode = cpu => { vsCpu = cpu; $("#vsCpu").classList.toggle("on", cpu); $("#vs2").classList.toggle("on", !cpu); $("#vsCpu").setAttribute("aria-pressed", String(cpu)); $("#vs2").setAttribute("aria-pressed", String(!cpu)); startGame(); };
+$("#vsCpu").onclick = () => setMode(true);
+$("#vs2").onclick = () => setMode(false);
+$("#again").onclick = startGame;
 })();
 </script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("../sw.js", { scope: "../" }).catch(() => {}));</script>

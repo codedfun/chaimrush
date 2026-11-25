@@ -127,10 +127,30 @@ const BLOCK = ["sex", "sexy", "sexual", "sexploitation", "exploitation", "nude",
   "gore", "gory", "slasher", "massacre", "cannibal", "zombie", "torture", "maniac", "serial killer", "satan", "satanic", "devil worship", "witchcraft", "occult",
   "propaganda", "nazi", "hitler", "minstrel", "blackface", "racist", "racism", "stereotype", "censored eleven", "boop"];
 const BLOCK_RE = new RegExp("\\b(" + BLOCK.map(w => w.replace(/[-]/g, "[- ]?")).join("|") + ")\\b", "i");
-const blockQ = BLOCK.map(w => '"' + w + '"').join(" OR ");
-const SAFE = ` AND NOT title:(${blockQ}) AND NOT subject:(${blockQ})`; // descriptions are checked when each movie arrives
+// a short list in the search itself (long searches can fail); every word in BLOCK is checked again on each result below
+const SAFE = " AND NOT title:(" + ["sex", "nude", "nudist", "erotic", "adult", "xxx", "porn", "burlesque", "striptease", "stag", "propaganda", "nazi", "hitler", "minstrel", "blackface", "boop"].join(" OR ") + ")";
+// load JSON from the Internet Archive; if the browser refuses the normal way, load it as a script instead
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cb = "__ia" + Math.random().toString(36).slice(2), sc = document.createElement("script");
+    const done = () => { clearTimeout(timer); delete window[cb]; sc.remove(); };
+    const timer = setTimeout(() => { done(); reject(new Error("timed out")); }, 20000);
+    window[cb] = data => { done(); resolve(data); };
+    sc.onerror = () => { done(); reject(new Error("blocked")); };
+    sc.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cb; document.head.appendChild(sc);
+  });
+}
+async function getJSON(url) {
+  let first;
+  try {
+    const res = await fetch(url);
+    if (res.ok) { const d = await res.json(); if (!d?.error) return d; first = "bad reply"; } else first = "HTTP " + res.status;
+  } catch (e) { first = e.name === "TypeError" ? "refused" : e.message; }
+  try { const d = await jsonp(url); if (d?.error) throw new Error("bad reply"); return d; }
+  catch (e) { throw new Error(first + " / " + e.message); }
+}
 let hidden = new Set(); try { hidden = new Set(JSON.parse(localStorage.getItem("movies:hidden") || "[]")); } catch {}
-const ROWS = 36;
+const ROWS = 48;
 let cat = 0, term = "", page = 1, total = 0, loading = false, req = 0;
 
 const chips = $("#chips");
@@ -152,19 +172,19 @@ async function load() {
   const url = "https://archive.org/advancedsearch.php?" + new URLSearchParams({ q: query(), "fl[]": "identifier", rows: ROWS, page, output: "json", "sort[]": "downloads desc" })
     + "&fl[]=title&fl[]=year&fl[]=subject&fl[]=description";
   try {
-    const res = await fetch(url); if (!res.ok) throw new Error(res.status);
-    const data = await res.json(); if (my !== req) return;
+    const data = await getJSON(url); if (my !== req) return;
     const docs = data.response?.docs || []; total = data.response?.numFound || 0;
     for (const d of docs) addMovie(d);
     const shown = $("#grid").children.length;
     if (!shown) { $("#status").textContent = term ? `No cartoons found for "${term}". Try another word.` : "No cartoons here right now."; }
     else { $("#status").hidden = true; }
-    $("#more").hidden = shown >= total;
-  } catch {
+    $("#more").hidden = page * ROWS >= total;
+    if (!shown && page * ROWS < total) { page++; loading = false; return load(); } // everything on this page was filtered out
+  } catch (err) {
     if (my !== req) return;
     $("#status").innerHTML = navigator.onLine === false
       ? "Cartoons need an internet connection. Connect to Wi-Fi or data and try again."
-      : 'The movie list couldn\'t load right now. <a href="#" id="retry">Try again</a>';
+      : `The cartoon list couldn't load right now. <a href="#" id="retry">Try again</a><br><small>(${String(err?.message || "error").replace(/[<>&]/g, "")})</small>`;
     $("#retry")?.addEventListener("click", e => { e.preventDefault(); load(); });
   } finally { if (my === req) loading = false; }
 }
@@ -216,8 +236,7 @@ function pickParts(files) {
 }
 async function loadVideo(id, my) {
   try {
-    const res = await fetch("https://archive.org/metadata/" + encodeURIComponent(id)); if (!res.ok) throw new Error(res.status);
-    const meta = await res.json(); if (my !== playReq) return;
+    const meta = await getJSON("https://archive.org/metadata/" + encodeURIComponent(id)); if (my !== playReq) return;
     const parts = pickParts(meta.files);
     if (!parts.length) { showMsg("Sorry, this cartoon can't play on this page. Pick another one."); return; }
     const src = name => "https://archive.org/download/" + encodeURIComponent(id) + "/" + name.split("/").map(encodeURIComponent).join("/");
