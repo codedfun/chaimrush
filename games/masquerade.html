@@ -481,7 +481,11 @@ function toast(msg){
 function show(id, on){ $(id).hidden = !on; }
 
 /* ---------- Audio graph ---------- */
+// iPhone keeps the audio mode between pages; the games set it to "playback", which blocks the microphone
+function micAudioMode(){ try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch(e){} }
+micAudioMode();
 async function startAudio(){
+  micAudioMode();
   const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
   // 24 kHz is plenty for voice and halves the processing load; a 'balanced' buffer absorbs
   // brief CPU spikes on phones. Fall back to the device default if the browser refuses.
