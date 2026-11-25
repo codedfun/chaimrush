@@ -412,7 +412,7 @@ function update(dt) {
   P.vx = Math.max(-maxV, Math.min(maxV, P.vx));
   P.coyote = P.onGround ? 0.1 : Math.max(0, P.coyote - dt);
   const buffered = performance.now() - jumpPressedAt < 130;
-  if (buffered && (P.onGround || P.coyote > 0)) { P.vy = -15.6; P.onGround = false; P.coyote = 0; jumpPressedAt = -1; sfx.jump(); P.squash = -0.25; }
+  if (buffered && (P.onGround || P.coyote > 0)) { P.vy = -18; P.onGround = false; P.coyote = 0; jumpPressedAt = -1; sfx.jump(); P.squash = -0.25; }
   if (!jumpHeld && P.vy < -5.5) P.vy = -5.5;                   // release early for a short hop
   P.vy = Math.min(18, P.vy + 38 * dt);
   // ride a moving platform
