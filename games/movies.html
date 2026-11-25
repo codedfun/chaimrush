@@ -119,10 +119,15 @@ const words = list => list.map(w => w.includes(" ") ? '"' + w + '"' : w).join(" 
 // kids' educational and nature films from the Prelinger Archives (public domain)
 const LEARN_Q = `(collection:(prelinger) AND subject:(${words(["animals", "nature", "science", "children", "safety", "education", "zoo", "wildlife", "birds", "space"])}))`;
 // classic superhero cartoons, and the old adventure serials and early TV hero shows
+// the 1941-43 Superman cartoons (public domain); some copies are titled by episode only
+const SUPERMAN_EPISODES = ["The Mad Scientist", "The Mechanical Monsters", "Billion Dollar Limited", "The Arctic Giant", "The Bulleteers", "The Magnetic Telescope",
+  "Electric Earthquake", "Volcano", "Terror on the Midway", "Showdown", "Destruction, Inc.", "The Mummy Strikes", "The Underground World", "Secret Agent"];
+const SUPERMAN_Q = `((title:(Superman) AND collection:(classic_cartoons OR feature_films OR classic_tv)) OR (collection:(classic_cartoons) AND title:(${words(SUPERMAN_EPISODES.map(t => t.replace(/[,.]/g, "")))})))`;
 const HEROES_Q = `(collection:(classic_cartoons) AND title:(${words(["Superman", "Mighty Mouse", "Popeye", "Super", "Hero", "Mighty", "Captain", "Strongman", "Rescue"])}))`;
 const ADVENTURE_Q = `(collection:(feature_films OR classic_tv OR serials OR SciFi_Horror OR classic_cartoons) AND title:(${words(["Flash Gordon", "Buck Rogers", "Commando Cody", "Radar Men", "Rocket Man", "Captain Video", "Space Patrol", "Rocky Jones", "Tom Corbett", "Lone Ranger", "Zorro", "Masked Rider", "Phantom Empire", "Undersea Kingdom", "Jungle Jim", "Tarzan", "Sky King", "Robin Hood", "Three Musketeers"])}))`;
 const CATS = [
   { label: "All cartoons", q: TOONS },
+  { label: "Superman", q: SUPERMAN_Q, sort: "year asc" },
   { label: "Superheroes", q: HEROES_Q },
   { label: "Hero adventures", q: ADVENTURE_Q },
   { label: "Animals", q: `${TOONS} AND title:(${words(["cat", "cats", "kitten", "dog", "dogs", "puppy", "pup", "bear", "bunny", "rabbit", "mouse", "mice", "duck", "pig", "fox", "monkey", "elephant", "fish", "bird", "birds", "owl", "frog", "horse", "cow", "chicken", "goat", "bee", "bug", "bugs", "zoo", "farm"])})` },
@@ -133,14 +138,14 @@ const CATS = [
   { label: "Animated movies", q: FEATURES_Q },
   { label: "Learning films", q: LEARN_Q },
 ];
-const ALL = `(${TOONS} OR ${HEROES_Q} OR ${ADVENTURE_Q} OR ${FEATURES_Q} OR ${LEARN_Q})`;
+const ALL = `(${TOONS} OR ${SUPERMAN_Q} OR ${HEROES_Q} OR ${ADVENTURE_Q} OR ${FEATURES_Q} OR ${LEARN_Q})`;
 // anything that sounds grown-up is left out, by title, subject and description
 const BLOCK = ["sex", "sexy", "sexual", "sexploitation", "exploitation", "nude", "nudes", "nudity", "naked", "nudist", "nudism", "erotic", "erotica", "adult", "adults only",
   "xxx", "porn", "porno", "pornography", "stag", "striptease", "stripper", "strip", "burlesque", "peep", "pinup", "pin-up", "lingerie", "bikini", "lust", "seduction", "seductress", "sin", "sinners", "vice",
   "prostitute", "prostitution", "brothel", "hooker", "orgy", "playboy", "risque", "pre-code", "precode", "harlot", "mistress", "affair", "honeymoon", "wedding night", "virgin",
   "drug", "drugs", "marijuana", "reefer", "cocaine", "heroin", "narcotic", "narcotics", "opium", "dope", "addict",
   "gore", "gory", "slasher", "massacre", "cannibal", "zombie", "torture", "maniac", "serial killer", "satan", "satanic", "devil worship", "witchcraft", "occult",
-  "propaganda", "nazi", "hitler", "minstrel", "blackface", "racist", "racism", "stereotype", "censored eleven", "boop"];
+  "propaganda", "nazi", "hitler", "minstrel", "blackface", "racist", "racism", "stereotype", "censored eleven", "boop", "japoteurs", "eleventh hour", "jungle drums"];
 // grown-up health and social films in the learning collection
 const BLOCK_LEARN = [  "venereal", "syphilis", "pregnancy", "pregnant", "childbirth", "birth control", "menstruation", "puberty", "reproduction", "dating", "petting", "marriage", "divorce",
   "smoking", "cigarette", "alcohol", "alcoholism", "drunk", "drinking", "liquor", "crime", "criminal", "gun", "guns", "atomic", "nuclear", "bomb", "war", "combat", "army", "navy", "soldier", "juvenile delinquency", "delinquent"];
@@ -188,7 +193,7 @@ function query() {
 async function load() {
   if (loading) return; loading = true; const my = ++req;
   $("#more").hidden = true; $("#status").hidden = false; $("#status").textContent = page === 1 ? "Loading cartoons…" : "Loading more…";
-  const url = "https://archive.org/advancedsearch.php?" + new URLSearchParams({ q: query(), "fl[]": "identifier", rows: ROWS, page, output: "json", "sort[]": "downloads desc" })
+  const url = "https://archive.org/advancedsearch.php?" + new URLSearchParams({ q: query(), "fl[]": "identifier", rows: ROWS, page, output: "json", "sort[]": (!term && CATS[cat].sort) || "downloads desc" })
     + "&fl[]=title&fl[]=year&fl[]=subject&fl[]=description&fl[]=collection";
   try {
     const data = await getJSON(url); if (my !== req) return;
