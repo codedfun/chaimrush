@@ -66,6 +66,7 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
 .screen{position:relative}
 .screen video{width:100%;height:100%;display:block;background:#000}
 .screen .msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:14px;line-height:1.5}
+.hide{border:0;border-radius:999px;background:none;color:var(--coral);font-size:13px;font-weight:700;padding:6px 12px;text-decoration:underline}
 .parts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:900px}
 .parts button{border:0;border-radius:999px;background:var(--panel2);padding:7px 14px;font-size:13.5px;font-weight:500;color:var(--muted)}
 .parts button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
@@ -78,7 +79,7 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
   <a class="back" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>More games</a>
   <header>
     <h1>Free <span>Movies</span></h1>
-    <p>Thousands of classic movies and cartoons that are free for everyone to watch, with no ads and no sign-up. They come from the Internet Archive's public-domain collections, so they're mostly older films.</p>
+    <p>Classic family movies and cartoons that are free to watch, with no ads and no sign-up. They're older public-domain films from the Internet Archive, filtered to keep out anything grown-up.</p>
   </header>
   <form class="search" id="searchForm" role="search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
@@ -99,6 +100,7 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
   <div class="screen" id="screen"></div>
   <div class="parts" id="parts" role="group" aria-label="Parts of this movie" hidden></div>
   <p>Use the full-screen button in the player to watch sideways.</p>
+  <button class="hide" id="hideBtn" type="button">Not OK for kids? Hide this movie</button>
 </div>
 
 <script>
@@ -106,15 +108,30 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
 "use strict";
 const $ = s => document.querySelector(s);
 // Internet Archive collections of public-domain films
+// Kid-safe: only family-friendly collections, plus a list of well-known family classics
+const FAMILY_TITLES = ["The General", "Sherlock Jr.", "The Kid", "Safety Last", "The Gold Rush", "The Navigator", "Steamboat Bill, Jr.",
+  "Our Hospitality", "The Circus", "Gulliver's Travels", "Jack and the Beanstalk", "The Little Princess", "A Trip to the Moon",
+  "The Lost World", "Santa Claus Conquers the Martians", "Africa Screams", "Royal Wedding", "His Girl Friday", "The Thief of Bagdad",
+  "Mr. Robinson Crusoe", "The Three Musketeers", "Robin Hood", "Tom Sawyer", "Heidi", "Five Little Peppers", "Hoppity Goes to Town",
+  "Mr. Bug Goes to Town", "The Mark of Zorro", "Peter Pan", "Alice in Wonderland", "Pinocchio"];
+const COLLS = "collection:(classic_cartoons OR comedy_films OR silent_films OR feature_films)";
 const CATS = [
-  { label: "Popular", q: "collection:(feature_films)" },
+  { label: "Family movies", q: `collection:(feature_films OR silent_films OR comedy_films) AND title:(${FAMILY_TITLES.map(t => '"' + t.replace(/"/g, "") + '"').join(" OR ")})` },
   { label: "Cartoons", q: "collection:(classic_cartoons)" },
   { label: "Comedy", q: "collection:(comedy_films)" },
-  { label: "Sci-fi & horror", q: "collection:(SciFi_Horror)" },
-  { label: "Mystery", q: "collection:(film_noir)" },
   { label: "Silent films", q: "collection:(silent_films)" },
 ];
-const ALL = "collection:(feature_films OR classic_cartoons OR comedy_films OR SciFi_Horror OR film_noir OR silent_films)";
+const ALL = COLLS;
+// anything that sounds grown-up is left out, by title, subject and description
+const BLOCK = ["sex", "sexy", "sexual", "sexploitation", "exploitation", "nude", "nudes", "nudity", "naked", "nudist", "nudism", "erotic", "erotica", "adult", "adults only",
+  "xxx", "porn", "porno", "pornography", "stag", "striptease", "stripper", "strip", "burlesque", "peep", "pinup", "pin-up", "lingerie", "bikini", "lust", "seduction", "seductress", "sin", "sinners", "vice",
+  "prostitute", "prostitution", "brothel", "hooker", "orgy", "playboy", "risque", "pre-code", "precode", "harlot", "mistress", "affair", "honeymoon", "wedding night", "virgin",
+  "drug", "drugs", "marijuana", "reefer", "cocaine", "heroin", "narcotic", "narcotics", "opium", "dope", "addict",
+  "gore", "gory", "slasher", "massacre", "cannibal", "zombie", "torture", "maniac", "serial killer", "satan", "satanic", "devil worship", "witchcraft", "occult"];
+const BLOCK_RE = new RegExp("\\b(" + BLOCK.map(w => w.replace(/[-]/g, "[- ]?")).join("|") + ")\\b", "i");
+const blockQ = BLOCK.map(w => '"' + w + '"').join(" OR ");
+const SAFE = ` AND NOT title:(${blockQ}) AND NOT subject:(${blockQ})`; // descriptions are checked when each movie arrives
+let hidden = new Set(); try { hidden = new Set(JSON.parse(localStorage.getItem("movies:hidden") || "[]")); } catch {}
 const ROWS = 36;
 let cat = 0, term = "", page = 1, total = 0, loading = false, req = 0;
 
@@ -128,14 +145,14 @@ function syncChips() { [...chips.children].forEach((b, i) => b.setAttribute("ari
 
 function cleanTerm(t) { return t.replace(/[^\p{L}\p{N}\s'-]/gu, " ").trim().split(/\s+/).filter(Boolean).slice(0, 6); }
 function query() {
-  if (term) { const words = cleanTerm(term); if (words.length) return `${ALL} AND mediatype:(movies) AND title:(${words.map(w => w.replace(/'/g, "")).join(" AND ")})`; }
-  return `${CATS[cat].q} AND mediatype:(movies)`;
+  if (term) { const words = cleanTerm(term); if (words.length) return `${ALL} AND mediatype:(movies) AND title:(${words.map(w => w.replace(/'/g, "")).join(" AND ")})${SAFE}`; }
+  return `${CATS[cat].q} AND mediatype:(movies)${SAFE}`;
 }
 async function load() {
   if (loading) return; loading = true; const my = ++req;
   $("#more").hidden = true; $("#status").hidden = false; $("#status").textContent = page === 1 ? "Loading movies…" : "Loading more…";
   const url = "https://archive.org/advancedsearch.php?" + new URLSearchParams({ q: query(), "fl[]": "identifier", rows: ROWS, page, output: "json", "sort[]": "downloads desc" })
-    + "&fl[]=title&fl[]=year";
+    + "&fl[]=title&fl[]=year&fl[]=subject&fl[]=description";
   try {
     const res = await fetch(url); if (!res.ok) throw new Error(res.status);
     const data = await res.json(); if (my !== req) return;
@@ -154,8 +171,10 @@ async function load() {
   } finally { if (my === req) loading = false; }
 }
 function reset() { req++; loading = false; page = 1; total = 0; $("#grid").replaceChildren(); load(); }
+const text = v => (Array.isArray(v) ? v.join(" ") : String(v || "")).replace(/<[^>]*>/g, " ");
 function addMovie(d) {
-  if (!d.identifier) return;
+  if (!d.identifier || hidden.has(d.identifier)) return;
+  if (BLOCK_RE.test(text(d.title)) || BLOCK_RE.test(text(d.subject)) || BLOCK_RE.test(text(d.description))) return;
   const title = Array.isArray(d.title) ? d.title[0] : (d.title || d.identifier), year = d.year ? String(d.year).slice(0, 4) : "";
   const b = document.createElement("button"); b.type = "button"; b.className = "movie"; b.setAttribute("aria-label", `Watch ${title}${year ? ", " + year : ""}`);
   const poster = document.createElement("div"); poster.className = "poster";
@@ -166,7 +185,7 @@ function addMovie(d) {
   const t = document.createElement("b"); t.textContent = title;
   b.append(poster, t);
   if (year) { const y = document.createElement("small"); y.textContent = year; b.appendChild(y); }
-  b.onclick = () => openMovie(d.identifier, title, year);
+  b.dataset.id = d.identifier; b.onclick = () => openMovie(d.identifier, title, year);
   $("#grid").appendChild(b);
 }
 let lastFocus = null;
@@ -176,9 +195,15 @@ function openMovie(id, title, year) {
   showMsg("Getting the movie ready…"); $("#parts").hidden = true;
   $("#player").hidden = false; document.body.style.overflow = "hidden"; $("#close").focus();
   history.pushState({ movie: id }, "");
-  loadVideo(id, ++playReq);
+  playingId = id; loadVideo(id, ++playReq);
 }
-let playReq = 0;
+let playReq = 0, playingId = null;
+$("#hideBtn").onclick = () => {
+  if (!playingId) return; hidden.add(playingId);
+  try { localStorage.setItem("movies:hidden", JSON.stringify([...hidden])); } catch {}
+  [...$("#grid").children].forEach(b => { if (b.dataset.id === playingId) b.remove(); });
+  closeMovie(false);
+};
 function showMsg(t) { const m = document.createElement("div"); m.className = "msg"; m.textContent = t; $("#screen").replaceChildren(m); }
 // pick a video file iPhones can play (MP4), one per part of the movie
 const RANK = { "h.264": 1, "h.264 IA": 2, "MPEG4": 3, "h.264 HD": 4, "512Kb MPEG4": 5 };
