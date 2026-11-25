@@ -48,6 +48,20 @@ h1 span{color:var(--gold)}
 .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .controls button{border:0;border-radius:999px;background:var(--panel2);padding:10px 16px;font-weight:700;font-size:14px}
 .controls button.on{background:var(--teal);color:#06231f}
+.online{width:100%;max-width:360px;background:var(--panel);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center}
+.online .lbl{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+.mypin{font-family:var(--display);font-size:40px;letter-spacing:.18em;line-height:1;color:var(--gold)}
+.join{display:flex;gap:8px;width:100%}
+.join input{flex:1;min-width:0;font:inherit;font-family:var(--display);font-size:22px;letter-spacing:.3em;text-align:center;padding:8px 0 8px .3em;border-radius:12px;border:2px solid var(--panel2);background:var(--night);color:var(--ink);outline:none}
+.join input:focus{border-color:var(--gold)}
+.join button,.invite button,.leave{border:0;border-radius:12px;padding:10px 16px;font-weight:700}
+.join button,.invite .yes{background:var(--coral);color:#1b0f0c}
+.invite{display:flex;flex-direction:column;gap:8px;width:100%;background:var(--panel2);border-radius:14px;padding:12px}
+.invite b{font-size:16px}
+.invite div{display:flex;gap:8px}.invite div button{flex:1}
+.invite .no,.leave{background:var(--panel2)}
+.invite .no{background:var(--panel)}
+.netmsg{font-size:13.5px;color:var(--muted);min-height:1.2em;margin:0}
 .start{border:0;border-radius:18px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:26px;padding:15px 40px;box-shadow:0 6px 0 #b8402f}
 .start:active{transform:translateY(3px);box-shadow:0 3px 0 #b8402f}
 .how{color:var(--muted);font-size:13.5px;text-align:center;margin:0;max-width:340px;line-height:1.45}
@@ -77,8 +91,21 @@ h1 span{color:var(--gold)}
   <div class="controls" id="controls" hidden>
     <button id="vsCpu" class="on" aria-pressed="true">Vs computer</button>
     <button id="vs2" aria-pressed="false">2 players</button>
+    <button id="vsNet" aria-pressed="false">Online</button>
     <button id="again">New game</button>
   </div>
+  <section class="online" id="online" hidden aria-label="Play online">
+    <span class="lbl">Your PIN</span>
+    <div class="mypin" id="myPin" aria-live="polite">···</div>
+    <p class="netmsg" id="netMsg">Connecting…</p>
+    <div class="invite" id="inviteBox" hidden>
+      <b id="inviteText"></b>
+      <div><button class="no" id="inviteNo">No thanks</button><button class="yes" id="inviteYes">Play</button></div>
+    </div>
+    <span class="lbl" id="joinLbl">Play a friend: enter their PIN</span>
+    <form class="join" id="joinForm"><input id="friendPin" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" aria-label="Friend's PIN" placeholder="000"><button type="submit">Play</button></form>
+    <button class="leave" id="leaveBtn" hidden>Leave this game</button>
+  </section>
   <button class="start" id="startBtn">Start playing</button>
   <p class="how">Take turns dropping red and yellow discs into the board. The first to line up four across, down or diagonally wins.</p>
 </div>
@@ -93,6 +120,7 @@ h1 span{color:var(--gold)}
   </form>
 </div>
 
+<script src="../vendor/mqtt.min.js"></script>
 <script>
 (() => {
 const $ = s => document.querySelector(s);
@@ -128,7 +156,7 @@ $("#form").addEventListener("submit", e => {
 
 /* ===== the real game: you are red, the computer (or a friend) is yellow ===== */
 const COLS = 7, ROWS = 6;
-let grid, turn, over, vsCpu = true, busy = false;
+let grid, turn, over, mode = "cpu", busy = false;
 const at = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS ? grid[r][c] : -1;
 function lineFrom(g, r, c) {
   const p = g[r][c]; if (!p) return null;
@@ -141,7 +169,7 @@ function lineFrom(g, r, c) {
 }
 const openRow = (g, c) => { for (let r = ROWS - 1; r >= 0; r--) if (!g[r][c]) return r; return -1; };
 function startGame() {
-  clearInterval(demo); $("#startBtn").hidden = true; $(".how").hidden = true; $("#status").hidden = false; $("#controls").hidden = false;
+  clearInterval(demo); $("#startBtn").hidden = true; $(".how").hidden = true; $("#status").hidden = false; $("#controls").hidden = false; $("#online").hidden = mode !== "online";
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0)); turn = 1; over = false; busy = false;
   cells.forEach(c => { c.replaceChildren(); c.classList.remove("win"); });
   board.classList.add("play"); board.removeAttribute("aria-hidden"); board.setAttribute("aria-label", "Game board. Tap a column to drop a disc");
@@ -150,7 +178,9 @@ function startGame() {
 function say(text) {
   const st = $("#status");
   if (text) { st.innerHTML = text; return; }
-  st.innerHTML = vsCpu ? (turn === 1 ? '<span class="r">Your turn</span>' : '<span class="y">Computer is thinking…</span>')
+  const col = t => t === 1 ? "r" : "y", name = t => t === 1 ? "red" : "yellow";
+  if (mode === "online") st.innerHTML = !net.peer ? "Play online" : turn === net.me ? `<span class="${col(turn)}">Your turn (${name(turn)})</span>` : `<span class="${col(turn)}">${net.peer.pin}'s turn</span>`;
+  else st.innerHTML = mode === "cpu" ? (turn === 1 ? '<span class="r">Your turn</span>' : '<span class="y">Computer is thinking…</span>')
                        : (turn === 1 ? '<span class="r">Red\'s turn</span>' : '<span class="y">Yellow\'s turn</span>');
 }
 function drop(c) {
@@ -158,7 +188,9 @@ function drop(c) {
   grid[r][c] = turn; const d = document.createElement("i"); d.className = "disc " + (turn === 1 ? "r" : "y"); cells[r * COLS + c].appendChild(d);
   const win = lineFrom(grid, r, c);
   if (win) { over = true; win.forEach(([rr, cc]) => cells[rr * COLS + cc].classList.add("win"));
-    say(vsCpu ? (turn === 1 ? '<span class="r">You win!</span>' : '<span class="y">The computer wins</span>') : (turn === 1 ? '<span class="r">Red wins!</span>' : '<span class="y">Yellow wins!</span>')); return true; }
+    const c = turn === 1 ? "r" : "y";
+    say(mode === "online" ? (turn === net.me ? `<span class="${c}">You win!</span>` : `<span class="${c}">${net.peer.pin} wins</span>`)
+      : mode === "cpu" ? (turn === 1 ? '<span class="r">You win!</span>' : '<span class="y">The computer wins</span>') : (turn === 1 ? '<span class="r">Red wins!</span>' : '<span class="y">Yellow wins!</span>')); return true; }
   if (grid[0].every(Boolean)) { over = true; say("It's a draw"); return true; }
   turn = 3 - turn; say(); return true;
 }
@@ -172,16 +204,122 @@ function cpuMove() {
   return Math.random() < 0.75 ? pick[0] : pick[Math.floor(Math.random() * pick.length)];
 }
 board.addEventListener("click", e => {
-  if (!board.classList.contains("play") || over || busy || (vsCpu && turn === 2)) return;
+  if (!board.classList.contains("play") || over || busy || (mode === "cpu" && turn === 2)) return;
+  if (mode === "online" && (!net.peer || turn !== net.me)) return;
   const cell = e.target.closest(".cell"); if (!cell) return;
-  const c = cells.indexOf(cell) % COLS;
+  const c = cells.indexOf(cell) % COLS, n = moves();
   if (!drop(c)) return;
-  if (vsCpu && !over) { busy = true; setTimeout(() => { busy = false; if (!over) drop(cpuMove()); }, 550); }
+  if (mode === "online") send({ t: "move", c, n, round: net.round });
+  if (mode === "cpu" && !over) { busy = true; setTimeout(() => { busy = false; if (!over) drop(cpuMove()); }, 550); }
 });
-const setMode = cpu => { vsCpu = cpu; $("#vsCpu").classList.toggle("on", cpu); $("#vs2").classList.toggle("on", !cpu); $("#vsCpu").setAttribute("aria-pressed", String(cpu)); $("#vs2").setAttribute("aria-pressed", String(!cpu)); startGame(); };
-$("#vsCpu").onclick = () => setMode(true);
-$("#vs2").onclick = () => setMode(false);
-$("#again").onclick = startGame;
+const moves = () => grid.flat().filter(Boolean).length;
+function setMode(m) {
+  if (mode === "online" && m !== "online") leaveMatch(true);
+  mode = m;
+  for (const [id, v] of [["#vsCpu", "cpu"], ["#vs2", "local"], ["#vsNet", "online"]]) { $(id).classList.toggle("on", m === v); $(id).setAttribute("aria-pressed", String(m === v)); }
+  startGame();
+  if (m === "online") goOnline();
+}
+$("#vsCpu").onclick = () => setMode("cpu");
+$("#vs2").onclick = () => setMode("local");
+$("#vsNet").onclick = () => setMode("online");
+$("#again").onclick = () => {
+  if (mode !== "online") return startGame();
+  if (!net.peer) return;
+  if (!over && moves()) { netMsg("Finish this game first, or leave it"); return; }
+  newRound(net.round + 1); send({ t: "again", round: net.round });
+};
+
+/* ===== online: both phones talk through a public message relay; each phone listens on its PIN ===== */
+const BROKERS = window.__C4_BROKERS || ["wss://broker.hivemq.com:8884/mqtt", "wss://broker.emqx.io:8084/mqtt"];
+const TOPIC = "chaimrush-codedfun/four/v1/";
+const net = { client: null, pin: null, id: Math.random().toString(36).slice(2, 10), peer: null, me: 1, base: 1, round: 0, seen: 0, inviting: null, invite: null, brokerIx: 0 };
+const netMsg = t => { $("#netMsg").textContent = t; };
+function send(msg, toPin) {
+  const pin = toPin || net.peer?.pin; if (!net.client || !pin) return;
+  net.client.publish(TOPIC + pin, JSON.stringify({ ...msg, from: net.pin, id: net.id, to: msg.to || net.peer?.id }), { qos: 1 });
+}
+function goOnline() {
+  $("#online").hidden = false; syncOnlineUI();
+  if (net.client) { if (net.pin) { $("#myPin").textContent = net.pin; netMsg(net.peer ? "" : "Share your PIN, or enter a friend's PIN"); } return; }
+  if (!window.mqtt) { netMsg("Online play couldn't load. Check your connection and reload."); return; }
+  connect();
+}
+function connect() {
+  const url = BROKERS[net.brokerIx % BROKERS.length]; netMsg("Connecting…");
+  const client = mqtt.connect(url, { clientId: "c4_" + net.id, clean: true, connectTimeout: 8000, reconnectPeriod: 3000, keepalive: 30 });
+  net.client = client; let ok = false;
+  const giveUp = setTimeout(() => { if (!ok) { client.end(true); net.client = null; net.brokerIx++; if (net.brokerIx < BROKERS.length * 2) connect(); else netMsg("Couldn't connect to online play. Check your connection and tap Online again."); } }, 9000);
+  client.on("connect", () => {
+    ok = true; clearTimeout(giveUp);
+    if (!net.pin) net.pin = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    client.subscribe(TOPIC + net.pin, { qos: 1 }, err => {
+      if (err) { netMsg("Couldn't get a PIN. Tap Online again."); return; }
+      $("#myPin").textContent = net.pin; netMsg(net.peer ? "Connected" : "Share your PIN, or enter a friend's PIN");
+    });
+  });
+  client.on("offline", () => { if (ok) netMsg("Connection lost. Reconnecting…"); });
+  client.on("message", (_, payload) => { let m; try { m = JSON.parse(String(payload)); } catch { return; } onNet(m); });
+}
+function syncOnlineUI() {
+  const inGame = !!net.peer;
+  $("#joinForm").hidden = inGame; $("#joinLbl").hidden = inGame; $("#leaveBtn").hidden = !inGame;
+  $("#inviteBox").hidden = !net.invite || inGame;
+  $("#again").textContent = mode === "online" ? "Rematch" : "New game";
+}
+function startMatch(peer, base) {
+  net.peer = peer; net.base = base; net.seen = Date.now(); net.inviting = null; net.invite = null;
+  newRound(0); netMsg(`Playing ${peer.pin}. ${net.me === 1 ? "You're red and go first." : "You're yellow. They go first."}`); syncOnlineUI();
+}
+function newRound(r) { net.round = r; net.me = r % 2 ? 3 - net.base : net.base; startGame(); syncOnlineUI(); } // colours swap every game; red always starts
+function leaveMatch(quiet) {
+  if (net.peer) send({ t: "bye" });
+  net.peer = null; net.inviting = null;
+  if (!quiet) { startGame(); netMsg("Share your PIN, or enter a friend's PIN"); }
+  syncOnlineUI();
+}
+function onNet(m) {
+  if (!m || m.id === net.id || typeof m.t !== "string") return;
+  if (m.to && m.to !== net.id) return;
+  const fromPeer = net.peer && m.id === net.peer.id;
+  if (fromPeer) net.seen = Date.now();
+  switch (m.t) {
+    case "invite":
+      if (net.peer || mode !== "online") { send({ t: "busy", to: m.id }, m.from); return; }
+      net.invite = { pin: m.from, id: m.id }; $("#inviteText").textContent = `${m.from} wants to play!`; syncOnlineUI();
+      if (navigator.vibrate) navigator.vibrate(120);
+      break;
+    case "accept":
+      if (net.inviting && net.inviting.pin === m.from) startMatch({ pin: m.from, id: m.id }, 1);
+      break;
+    case "decline": if (net.inviting?.pin === m.from) { net.inviting = null; netMsg(`${m.from} said no thanks`); } break;
+    case "busy": if (net.inviting?.pin === m.from) { net.inviting = null; netMsg(`${m.from} is busy right now`); } break;
+    case "move":
+      if (!fromPeer || m.round !== net.round || over || turn === net.me) return;
+      if (m.n !== moves() || typeof m.c !== "number") return;
+      drop(m.c); break;
+    case "again": if (fromPeer && m.round === net.round + 1) newRound(m.round); break;
+    case "bye": if (fromPeer) { net.peer = null; netMsg("Your friend left the game"); say("Your friend left"); over = true; syncOnlineUI(); } break;
+    case "ping": if (fromPeer) send({ t: "pong" }); break;
+  }
+}
+$("#joinForm").addEventListener("submit", e => {
+  e.preventDefault(); const pin = $("#friendPin").value.replace(/\D/g, "");
+  if (pin.length !== 3) { netMsg("PINs are 3 digits"); return; }
+  if (!net.client || !net.pin) { netMsg("Still connecting… try again in a moment"); return; }
+  if (pin === net.pin) { netMsg("That's your own PIN. Enter your friend's"); return; }
+  net.inviting = { pin }; send({ t: "invite" }, pin); netMsg(`Asking ${pin} to play…`); $("#friendPin").blur();
+  setTimeout(() => { if (net.inviting?.pin === pin && !net.peer) { net.inviting = null; netMsg(`No answer from ${pin}. Check the PIN and that they're on the Online screen.`); } }, 30000);
+});
+$("#inviteYes").onclick = () => { const inv = net.invite; if (!inv) return; send({ t: "accept", to: inv.id }, inv.pin); startMatch(inv, 2); };
+$("#inviteNo").onclick = () => { const inv = net.invite; if (!inv) return; send({ t: "decline", to: inv.id }, inv.pin); net.invite = null; syncOnlineUI(); };
+$("#leaveBtn").onclick = () => leaveMatch(false);
+setInterval(() => {
+  if (!net.peer) return;
+  send({ t: "ping" });
+  if (Date.now() - net.seen > 25000) { net.peer = null; over = true; say("Your friend disconnected"); netMsg("Lost touch with your friend. Enter a PIN to play again."); syncOnlineUI(); }
+}, 5000);
+addEventListener("pagehide", () => { if (net.peer) send({ t: "bye" }); });
 })();
 </script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("../sw.js", { scope: "../" }).catch(() => {}));</script>
