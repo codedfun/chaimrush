@@ -285,6 +285,39 @@ const LEVELS = [
     a.row(152, 156, 10, "="); a.row(159, 163, 9, "="); a.coins(152, 4, 9); a.coins(159, 4, 8);
     a.ground(165, 190); a.block(168, 8, "B"); a.block(169, 8, "P"); a.block(170, 8, "L"); a.roller(176); a.stairsUp(178, 4); a.door(185);
   }) },
+  { name: "Crate Canyon", build: () => makeLevel(180, a => {
+    a.ground(0, 24); a.coins(5, 4, 9); a.block(9, 8, "B"); a.block(10, 8, "P"); a.block(11, 8, "B"); a.slime(17);
+    a.ground(28, 50); a.arc(23, 6, 9, 2); a.stairsUp(31, 3); a.row(34, 40, 9); a.slime(37, 8); a.coins(34, 6, 8); a.stairsDown(40, 3);
+    a.spikes(44, 47); a.row(43, 48, 8, "="); a.coins(43, 5, 7);
+    a.ground(54, 80); a.arc(50, 4, 9, 2); a.roller(62); a.block(66, 8, "B"); a.block(67, 8, "L"); a.block(68, 8, "B"); a.slime(72); a.slime(75); a.tower(78, 2);
+    a.ground(84, 110, 11); a.arc(80, 4, 8, 2); a.slime(90, 10); a.spikes(95, 98, 10); a.row(94, 99, 7, "="); a.coins(94, 5, 6); a.roller(104, 10);
+    a.mover(112, 9, 3, 0, 1.6, true); a.coins(112, 3, 5); a.spikes(110, 117, 13);
+    a.ground(117, 150); a.stairsUp(122, 4); a.tower(126, 4); a.tower(127, 4); a.coins(126, 2, 7); a.stairsDown(128, 4);
+    a.slime(134); a.slime(137); a.block(140, 8, "P"); a.roller(144);
+    a.ground(154, 180); a.arc(150, 4, 9, 2); a.slime(160); a.coins(164, 4, 9); a.door(172);
+  }) },
+  { name: "Roller Rush", build: () => makeLevel(200, a => {
+    a.ground(0, 22); a.coins(5, 5, 9); a.block(10, 8, "P"); a.roller(18);
+    a.mover(24, 10, 3, 6, 2.4); a.coins(24, 9, 8);
+    a.ground(35, 60); a.row(44, 52, 8); a.block(48, 8, "B"); a.coins(44, 8, 7); a.roller(42); a.roller(50); a.spikes(55, 58);
+    a.ground(64, 90, 10); a.arc(60, 4, 8, 2); a.slime(70, 9); a.roller(76, 9); a.row(80, 85, 6, "="); a.coins(80, 5, 5); a.block(87, 6, "P");
+    a.ground(94, 120); a.roller(100); a.roller(106); a.slime(110); a.stairsUp(113, 3); a.stairsDown(116, 3);
+    a.spikes(120, 140, 13); a.mover(122, 9, 2, 0, 2, true); a.mover(127, 7, 2, 0, 2.2, true); a.mover(132, 9, 2, 0, 2, true); a.mover(136, 8, 2, 0, 2.4, true); a.coins(127, 2, 3);
+    a.ground(140, 170); a.block(146, 8, "B"); a.block(147, 8, "L"); a.roller(150); a.roller(156); a.slime(162);
+    a.ground(174, 200); a.arc(170, 4, 9, 2); a.stairsUp(178, 3); a.row(181, 186, 9); a.coins(181, 5, 8); a.stairsDown(186, 3); a.door(193);
+  }) },
+  { name: "Midnight Summit", build: () => makeLevel(220, a => {
+    a.ground(0, 18); a.coins(4, 4, 9); a.block(8, 8, "B"); a.block(9, 8, "P"); a.block(10, 8, "B"); a.slime(14);
+    a.ground(21, 26); a.ground(29, 34); a.ground(37, 42); a.arc(17, 5, 9, 2); a.arc(25, 5, 9, 2); a.arc(33, 5, 9, 2); a.slime(39);
+    a.mover(44, 10, 2, 6, 3); a.coins(44, 8, 8);
+    a.ground(54, 76, 11); a.slime(58, 10); a.roller(64, 10); a.spikes(68, 71, 10); a.row(67, 72, 7, "="); a.coins(67, 5, 6); a.slime(74, 10);
+    a.ground(80, 100, 9); a.arc(76, 4, 7, 2); a.roller(88, 8); a.block(92, 5, "P"); a.slime(96, 8);
+    a.ground(104, 130); a.stairsUp(108, 4); a.tower(112, 4); a.tower(113, 4); a.slime(113, 7); a.stairsDown(114, 4); a.roller(122); a.roller(126);
+    a.spikes(130, 152, 13); a.mover(132, 10, 2, 6, 2.8); a.mover(142, 8, 2, 6, 2.8); a.coins(134, 12, 6);
+    a.ground(152, 180); a.slime(156); a.slime(160); a.slime(164); a.row(166, 172, 10, "="); a.spikes(167, 172); a.coins(166, 6, 9); a.roller(176);
+    a.ground(184, 220); a.arc(180, 4, 9, 2); a.block(188, 8, "B"); a.block(189, 8, "P"); a.block(190, 8, "L"); a.roller(196);
+    a.stairsUp(200, 5); a.tower(205, 5); a.tower(206, 5); a.coins(205, 2, 6); a.door(212);
+  }) },
 ];
 
 /* ================= state ================= */
@@ -714,7 +747,7 @@ function levelDone() {
   if (next < LEVELS.length && next + 1 > unlocked) { unlocked = next + 1; store.set("quest:unlocked", String(unlocked)); }
   const last = next >= LEVELS.length;
   $("#endTitle").textContent = last ? "You beat Chaim Quest!" : "Level complete!";
-  $("#endText").textContent = last ? "All three levels done. Try them again for more coins." : `Next up: ${LEVELS[next].name}`;
+  $("#endText").textContent = last ? `All ${LEVELS.length} levels done. Try them again for more coins.` : `Next up: ${LEVELS[next].name}`;
   $("#endCoins").textContent = levelCoins;
   $("#endTime").textContent = `${Math.floor(levelTime / 60)}:${String(Math.floor(levelTime % 60)).padStart(2, "0")}`;
   $("#endBtn").textContent = last ? "Play again" : "Next level";
