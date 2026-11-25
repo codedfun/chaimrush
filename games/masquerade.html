@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5b3fd6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chaim Rush">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="masquerade-icon.png">
+<title>Masquerade Calls</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: one narrow column, phone first. Voice picker is the hero; call controls sit below it. */
+:root{
+  --bg:#f2f0f7; --surface:#ffffff; --fg:#1c1830; --muted:#68627f; --line:#dcd7ea;
+  --accent:#5b3fd6; --accent-soft:#e8e2ff; --accent-fg:#ffffff;
+  --ok:#17905a; --bad:#cf3449;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#13111c; --surface:#1d1a29; --fg:#ece9f7; --muted:#a29cbc; --line:#2f2b42;
+    --accent:#9b85ff; --accent-soft:#2a2448; --accent-fg:#13111c;
+    --ok:#3ccf8e; --bad:#ff6b7f;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--fg); font:15px/1.5 var(--body);
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:max(24px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+  min-height:100vh;
+}
+main{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:20px;padding-block:20px}
+h1{font:700 1.9rem/1.1 var(--display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font:600 .75rem/1 var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+p{margin:0}
+.sub{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+button{font:600 1rem var(--body);border:0;border-radius:12px;padding:14px 16px;cursor:pointer;color:inherit;background:var(--accent-soft)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.primary{background:var(--accent);color:var(--accent-fg)}
+.go{background:var(--ok);color:#fff}
+.stop{background:var(--bad);color:#fff}
+.wide{width:100%}
+
+.vgroup+.vgroup{margin-top:14px}
+.vgroup h3{font:600 .8rem var(--body);color:var(--muted);margin:0 0 8px}
+.voices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.voice{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border:2px solid transparent;background:var(--bg);text-align:left}
+.voice{padding:10px}
+.voice b{font:700 clamp(.7rem,3.2vw,.95rem) var(--display);white-space:nowrap}
+.voice small{font-size:clamp(.66rem,2.9vw,.75rem)}
+@media (max-width:380px){.panel{padding:12px}.voices{gap:6px}.voice{padding:8px 7px}.voice b{letter-spacing:-.01em}}
+.voice small{color:var(--muted);font-weight:500;font-size:.75rem;font-variant-numeric:tabular-nums}
+.voice[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.slider{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.slider label{display:flex;justify-content:space-between;font-weight:500}
+.slider output{font-variant-numeric:tabular-nums;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toggle{display:flex;align-items:center;gap:8px;margin-top:12px;color:var(--muted);font-size:.9rem}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+
+.meter{height:6px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:12px}
+.meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .08s linear}
+
+.code{font:700 2.4rem/1 var(--display);letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.codeRow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+input[type=tel]{
+  flex:1;min-width:0;font:700 1.4rem var(--display);letter-spacing:.12em;padding:12px 14px;
+  border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--fg);
+}
+.status{display:flex;align-items:center;gap:8px;font-weight:500}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.dot.ok{background:var(--ok)} .dot.live{background:var(--bad);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.dot.live{animation:none}.meter i{transition:none}}
+
+.ring{border-color:var(--ok);border-width:2px}
+.incall .code{font-size:1.6rem}
+.timer{font:700 2.6rem/1 var(--display);font-variant-numeric:tabular-nums}
+.note{font-size:.85rem;color:var(--muted)}
+.installRow{display:flex;gap:12px;align-items:center}
+.installRow img{border-radius:11px;flex:none}
+.shareGlyph{display:inline-block;vertical-align:-2px;color:var(--accent)}
+.tune{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.tune .slider{margin-top:8px}
+.tuneHead{display:flex;justify-content:space-between;align-items:center}
+.tuneHead h3{font:700 1rem var(--display);margin:0}
+button.small{padding:6px 12px;font-size:.85rem;border-radius:8px}
+#toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:500;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+<main>
+  <a href="./" id="backToGames" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;text-decoration:none;color:inherit;background:rgb(255 255 255/.08);border-radius:999px;padding:8px 14px 8px 10px;font-size:14px;font-weight:500;margin-bottom:4px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>More games</a>
+  <header>
+    <h1>Masquerade Calls</h1>
+    <p class="sub">Voice calls in your browser, with your voice changed live.</p>
+  </header>
+
+  <!-- iPhone install hint (Safari only, hidden once installed) -->
+  <section id="installPanel" class="panel install" hidden>
+    <div class="installRow">
+      <img src="masquerade-icon.png" alt="" width="48" height="48">
+      <div>
+        <p style="font-weight:600">Install on your iPhone</p>
+        <p class="note">Tap the Share button <svg class="shareGlyph" aria-label="Share" width="14" height="17" viewBox="0 0 14 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v10M3.5 4.5 7 1l3.5 3.5M4.5 7H2v9h10V7H9.5"/></svg> in Safari, then <b>Add to Home Screen</b>.</p>
+      </div>
+    </div>
+    <button id="installDismiss" class="wide" style="margin-top:12px;padding:10px">Not now</button>
+  </section>
+
+  <!-- Step 1: microphone -->
+  <section id="startPanel" class="panel">
+    <h2>Get started</h2>
+    <p style="margin-bottom:14px">Turn on your microphone to pick a voice and get your call code. Headphones give the best sound.</p>
+    <button id="startBtn" class="primary wide">Turn on microphone</button>
+    <p id="startErr" class="note" style="margin-top:10px;color:var(--bad)" hidden></p>
+  </section>
+
+  <!-- Voice picker -->
+  <section id="voicePanel" class="panel" hidden>
+    <h2>Your voice</h2>
+    <div id="voices"></div>
+    <div id="tunePanel" class="tune" hidden>
+      <div class="tuneHead"><h3 id="tuneTitle">Tune voice</h3><button id="tuneReset" type="button" class="small">Reset</button></div>
+      <div class="slider">
+        <label for="tPitch">Pitch <output id="tPitchOut"></output></label>
+        <input id="tPitch" type="range" min="-12" max="14" step="1">
+      </div>
+      <div class="slider">
+        <label for="tShape">Voice shape <output id="tShapeOut"></output></label>
+        <input id="tShape" type="range" min="65" max="140" step="1">
+      </div>
+      <div class="slider">
+        <label for="tBreath">Breathiness <output id="tBreathOut"></output></label>
+        <input id="tBreath" type="range" min="0" max="100" step="5">
+      </div>
+      <div class="slider">
+        <label for="tGrowl">Growl <output id="tGrowlOut"></output></label>
+        <input id="tGrowl" type="range" min="0" max="100" step="5">
+      </div>
+      <div class="slider">
+        <label for="tAir">Brightness <output id="tAirOut"></output></label>
+        <input id="tAir" type="range" min="0" max="10" step="1">
+      </div>
+      <p class="note">Lower pitch and shape sound bigger and deeper; higher sounds more feminine. Shape far from 100% starts to sound cartoonish. Growl adds gravel. Your settings are saved on this device.</p>
+    </div>
+    <div class="slider" id="customSlider">
+      <label for="pitch">Custom pitch <output id="pitchOut">0 semitones</output></label>
+      <input id="pitch" type="range" min="-12" max="12" step="1" value="0">
+    </div>
+    <label class="toggle"><input id="monitor" type="checkbox"> Hear myself (use headphones)</label>
+    <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+  </section>
+
+  <!-- Idle: my code + dial -->
+  <section id="dialPanel" class="panel" hidden>
+    <h2>Your call code</h2>
+    <div class="codeRow">
+      <span class="code" id="myCode">······</span>
+      <button id="shareBtn" disabled>Copy invite link</button>
+    </div>
+    <div class="status" style="margin-top:10px"><span class="dot" id="netDot"></span><span id="netStatus">Connecting…</span></div>
+
+    <h2 style="margin-top:22px">Call someone</h2>
+    <form id="dialForm" class="row">
+      <input id="dialCode" type="tel" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code" aria-label="Their call code" autocomplete="off">
+      <button id="callBtn" class="go" type="submit" disabled>Call</button>
+    </form>
+    <p class="note" style="margin-top:10px">The other person opens this same page and tells you their code, or you send them your invite link.</p>
+  </section>
+
+  <!-- Incoming -->
+  <section id="ringPanel" class="panel ring" hidden>
+    <h2>Incoming call</h2>
+    <p class="code" id="ringFrom" style="font-size:1.6rem;margin-bottom:14px"></p>
+    <div class="row">
+      <button id="answerBtn" class="go" style="flex:1">Answer</button>
+      <button id="declineBtn" class="stop" style="flex:1">Decline</button>
+    </div>
+  </section>
+
+  <!-- In call -->
+  <section id="callPanel" class="panel incall" hidden>
+    <h2 id="callLabel">Calling</h2>
+    <p class="code" id="callWith"></p>
+    <p class="timer" id="timer" style="margin:12px 0">0:00</p>
+    <div class="status" style="margin-bottom:14px"><span class="dot live"></span><span id="callStatus">Ringing…</span></div>
+    <div class="row">
+      <button id="muteBtn" style="flex:1" aria-pressed="false">Mute</button>
+      <button id="hangBtn" class="stop" style="flex:1">Hang up</button>
+    </div>
+    <p class="note" style="margin-top:12px">You can switch voices during the call. The other person hears the change right away.</p>
+  </section>
+</main>
+<div id="toast" role="status" hidden></div>
+<audio id="remote" autoplay playsinline></audio>
+
+<script src="../vendor/peerjs.min.js"></script>
+<script>
+/* ---------- Audio worklet: real-time granular pitch shifter ---------- */
+const WORKLET = `
+class PitchShifter extends AudioWorkletProcessor {
+  static get parameterDescriptors(){ return [{name:'pitch',defaultValue:1,minValue:0.25,maxValue:4,automationRate:'k-rate'}]; }
+  constructor(){
+    super();
+    this.N = 16384; this.buf = new Float32Array(this.N); this.w = 0;
+    this.W = Math.round(sampleRate * 0.045); // ~45 ms grain
+    this.phase = 0;
+  }
+  read(d){
+    let pos = this.w - d; while (pos < 0) pos += this.N;
+    const i = Math.floor(pos), f = pos - i, j = (i + 1) % this.N;
+    return this.buf[i] * (1 - f) + this.buf[j] * f;
+  }
+  process(inputs, outputs, params){
+    const inp = inputs[0] && inputs[0][0];
+    const out = outputs[0];
+    if (!inp) return true;
+    const p = params.pitch[0];
+    const o = out[0];
+    if (Math.abs(p - 1) < 1e-3){
+      for (let i = 0; i < inp.length; i++){ this.buf[this.w] = inp[i]; this.w = (this.w + 1) % this.N; o[i] = inp[i]; }
+    } else {
+      const step = (1 - p) / this.W, W = this.W;
+      for (let i = 0; i < inp.length; i++){
+        this.buf[this.w] = inp[i];
+        this.phase += step; this.phase -= Math.floor(this.phase);
+        const ph2 = (this.phase + 0.5) % 1;
+        const g1 = Math.sin(Math.PI * this.phase), g2 = Math.sin(Math.PI * ph2);
+        o[i] = this.read(this.phase * W + 2) * g1 + this.read(ph2 * W + 2) * g2;
+        this.w = (this.w + 1) % this.N;
+      }
+    }
+    for (let c = 1; c < out.length; c++) out[c].set(o);
+    return true;
+  }
+}
+registerProcessor('pitch-shifter', PitchShifter);
+/* Phase vocoder with spectral-envelope preservation: shifts pitch and formants independently.
+   Harmonics are moved as rigid blocks (peak-locked); each gets the gain that maps the voice's
+   envelope from where it came from to where it lands (optionally stretched by 'formant'). */
+class Vocoder extends AudioWorkletProcessor {
+  static get parameterDescriptors(){ return [
+    {name:'pitch',   defaultValue:1, minValue:0.25, maxValue:4, automationRate:'k-rate'},
+    {name:'formant', defaultValue:1, minValue:0.5,  maxValue:2, automationRate:'k-rate'},
+    {name:'active',  defaultValue:0, minValue:0,    maxValue:1, automationRate:'k-rate'}]; }
+  constructor(){
+    super();
+    const N = this.N = sampleRate >= 32000 ? 2048 : 1024, os = this.os = 4, H = N / 2;
+    this.step = N / os; this.lat = N - this.step; this.rover = this.lat;
+    this.work = new Float32Array(N); this.stage = 4; this.fp = 1; this.ff = 1;
+    // Output queue: a frame finishes up to one hop after it starts, so prime with two hops of silence.
+    this.qMask = 16383; this.outQ = new Float32Array(16384); this.qR = 0; this.qW = 2 * this.step;
+    this.inF = new Float32Array(N); this.acc = new Float32Array(2 * N);
+    this.lastPh = new Float64Array(H + 1); this.sumPh = new Float64Array(H + 1);
+    this.re = new Float32Array(N); this.im = new Float32Array(N);
+    this.cre = new Float32Array(N); this.cim = new Float32Array(N);
+    this.aMag = new Float32Array(H + 1); this.aFrq = new Float32Array(H + 1);
+    this.sMag = new Float32Array(H + 1); this.sFrq = new Float32Array(H + 1); this.env = new Float32Array(H + 1);
+    this.peaks = new Int32Array(H); this.np = 0; this.tmpEnv = new Float32Array(H + 1); this.tops = new Int32Array(H);
+    this.envW = Math.max(3, Math.round(100 / (sampleRate / N))); this.prevPh = new Float64Array(H + 1); this.prevAt = new Int32Array(H + 1).fill(-5); this.curAt = new Int32Array(H + 1).fill(-5); this.frameNo = 0;
+    this.win = new Float32Array(N); for (let k = 0; k < N; k++) this.win[k] = 0.5 - 0.5 * Math.cos(2 * Math.PI * k / N);
+    this.cosT = new Float32Array(N / 2); this.sinT = new Float32Array(N / 2);
+    for (let k = 0; k < N / 2; k++){ this.cosT[k] = Math.cos(2 * Math.PI * k / N); this.sinT[k] = Math.sin(2 * Math.PI * k / N); }
+    this.rev = new Uint32Array(N); const bits = Math.log2(N);
+    for (let i = 0; i < N; i++){ let r = 0; for (let b = 0; b < bits; b++) r |= ((i >> b) & 1) << (bits - 1 - b); this.rev[i] = r; }
+  }
+  fft(re, im, inv){
+    const N = this.N, rev = this.rev;
+    for (let i = 0; i < N; i++){ const j = rev[i]; if (j > i){ let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+    for (let size = 2; size <= N; size <<= 1){
+      const half = size >> 1, st = N / size;
+      for (let i = 0; i < N; i += size){
+        for (let j = 0; j < half; j++){
+          const k = j * st, wr = this.cosT[k], wi = inv ? this.sinT[k] : -this.sinT[k];
+          const a = i + j, b = a + half;
+          const tr = wr * re[b] - wi * im[b], ti = wr * im[b] + wi * re[b];
+          re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        }
+      }
+    }
+  }
+  // The frame's work is split into four stages, one per 128-sample audio block, so no single
+  // block has to do all of it. On phones a full frame in one block can miss the audio deadline,
+  // which is heard as choppy dropouts.
+  stage0(){
+    const N = this.N, H = N / 2, os = this.os, step = this.step, re = this.re, im = this.im;
+    const fpb = sampleRate / N, expct = 2 * Math.PI * step / N, cre = this.cre, cim = this.cim;
+    for (let k = 0; k < N; k++){ re[k] = this.work[k] * this.win[k]; im[k] = 0; }
+    this.fft(re, im, false);
+    for (let k = 0; k <= H; k++){
+      const r = re[k], i = im[k], mag = 2 * Math.sqrt(r * r + i * i), ph = Math.atan2(i, r);
+      let d = ph - this.lastPh[k]; this.lastPh[k] = ph; d -= k * expct;
+      let q = Math.trunc(d / Math.PI); if (q >= 0) q += q & 1; else q -= q & 1;
+      d -= Math.PI * q;
+      this.aFrq[k] = k * fpb + os * d / (2 * Math.PI) * fpb;
+      this.aMag[k] = mag;
+    }
+  }
+  stage1(){
+    // Spectral envelope through the tops of the harmonics, joined by straight lines (in dB).
+    // It follows the real voice shape at every pitch, so moving pitch down or up doesn't tilt
+    // the tone. (The old smoothed-cepstrum estimate over-boosted bass on lowered voices.)
+    const H = this.N / 2, aMag = this.aMag, tmp = this.tmpEnv, env = this.env, w = this.envW;
+    for (let k = 0; k <= H; k++) tmp[k] = Math.log(aMag[k] + 1e-9);
+    let amax = 0; for (let k = 0; k <= H; k++) if (aMag[k] > amax) amax = aMag[k];
+    const thr = amax * 0.0005, peaks = this.peaks, tops = this.tops;
+    let np = 0, nt = 0;
+    for (let k = 2; k < H - 1; k++){
+      const m = aMag[k];
+      if (m > thr && m > aMag[k - 1] && m >= aMag[k + 1] && m > aMag[k - 2] && m >= aMag[k + 2]){
+        peaks[np++] = k;
+        // a "top" is a peak within 10 dB of the loudest bin around it (skips window side-lobes)
+        let mx = -1e9; const lo = k - w < 0 ? 0 : k - w, hi = k + w > H ? H : k + w;
+        for (let i = lo; i <= hi; i++) if (tmp[i] > mx) mx = tmp[i];
+        if (tmp[k] >= mx - 1.15) tops[nt++] = k;
+      }
+    }
+    this.np = np;
+    if (nt === 0){ for (let k = 0; k <= H; k++) env[k] = tmp[k]; return; }
+    for (let k = 0; k <= tops[0]; k++) env[k] = tmp[tops[0]];
+    for (let t = 0; t < nt - 1; t++){
+      const a = tops[t], b = tops[t + 1], va = tmp[a], vb = tmp[b];
+      for (let k = a; k <= b; k++) env[k] = va + (vb - va) * (k - a) / (b - a);
+    }
+    for (let k = tops[nt - 1]; k <= H; k++) env[k] = tmp[tops[nt - 1]];
+  }
+  stage2(pitch, formant){
+    const N = this.N, H = N / 2, step = this.step, re = this.re, im = this.im;
+    // Peak-locked pitch shifting: each spectral peak (a harmonic) is moved as a rigid block with
+    // its neighbouring bins, keeping their phase relationship. This avoids the smeared, grainy
+    // sound of shifting every bin independently.
+    const env = this.env, aMag = this.aMag, ph = this.lastPh, sumPh = this.sumPh, peaks = this.peaks, np = this.np;
+    const envAt = x => { if (x >= H) return env[H]; if (x <= 0) return env[0]; const i0 = Math.floor(x), f = x - i0; return env[i0] * (1 - f) + env[i0 + 1] * f; };
+    re.fill(0); im.fill(0);
+    const TAU = 2 * Math.PI, adv = TAU * step / sampleRate;
+    for (let i = 0; i < np; i++){
+      const p = peaks[i];
+      const lo = i === 0 ? 0 : ((peaks[i - 1] + p) >> 1) + 1;
+      const hi = i === np - 1 ? H : (p + peaks[i + 1]) >> 1;
+      const q = Math.round(p * pitch);
+      if (q < 1 || q >= H) continue;
+      // Track the synthesis-minus-analysis phase offset of the peak landing near this output bin.
+      // Using an offset (not an absolute phase) keeps continuity when a harmonic drifts across bins.
+      let prev = 0;
+      if (this.prevAt[q] === this.frameNo - 1) prev = this.prevPh[q];
+      else if (this.prevAt[q - 1] === this.frameNo - 1) prev = this.prevPh[q - 1];
+      else if (this.prevAt[q + 1] === this.frameNo - 1) prev = this.prevPh[q + 1];
+      let rot = prev + adv * this.aFrq[p] * (pitch - 1); rot -= TAU * Math.floor(rot / TAU);
+      sumPh[q] = rot; this.curAt[q] = this.frameNo;
+      const base = ph[p] + rot;
+      // One gain per harmonic: envelope where it lands (after formant shift) over where it came from.
+      let g = Math.exp(envAt(q / formant) - env[p]);
+      if (g > 8) g = 8; else if (g < 0.125) g = 0.125;
+      for (let k = lo; k <= hi; k++){
+        const j = q + (k - p);
+        if (j < 0 || j > H) continue;
+        const m = aMag[k] * g, a = base + ph[k] - ph[p];
+        re[j] += m * Math.cos(a); im[j] += m * Math.sin(a);
+      }
+    }
+    this.prevPh.set(sumPh); for (let k = 0; k <= H; k++) this.prevAt[k] = this.curAt[k];
+    this.frameNo++;
+  }
+  stage3(){
+    const N = this.N, H = N / 2, os = this.os, step = this.step, re = this.re, im = this.im;
+    const fpb = sampleRate / N, expct = 2 * Math.PI * step / N, cre = this.cre, cim = this.cim;
+    this.fft(re, im, true);
+    const sc = 2 / (H * os * 1.5); // 1.5 = summed Hann² overlap at 4x
+    for (let k = 0; k < N; k++) this.acc[k] += this.win[k] * re[k] * sc;
+    for (let k = 0; k < step; k++){ this.outQ[this.qW] = this.acc[k]; this.qW = (this.qW + 1) & this.qMask; }
+    this.acc.copyWithin(0, step); this.acc.fill(0, N);
+  }
+  process(inputs, outputs, params){
+    const inp = inputs[0] && inputs[0][0], out = outputs[0];
+    if (!inp) return true;
+    const o = out[0];
+    if (params.active[0] < 0.5){ o.set(inp); }
+    else {
+      const n = inp.length;
+      for (let i = 0; i < n; i++){
+        this.inF[this.rover++] = inp[i];
+        o[i] = this.outQ[this.qR]; this.outQ[this.qR] = 0; this.qR = (this.qR + 1) & this.qMask;
+        if (this.rover >= this.N){
+          // finish any frame still in progress before starting the next one
+          while (this.stage < 4) this.runStage();
+          this.work.set(this.inF); this.inF.copyWithin(0, this.step, this.N); this.rover = this.lat;
+          this.fp = params.pitch[0]; this.ff = params.formant[0]; this.stage = 0;
+        }
+      }
+      if (this.stage < 4) this.runStage();
+    }
+    for (let c = 1; c < out.length; c++) out[c].set(o);
+    return true;
+  }
+  runStage(){
+    switch (this.stage){
+      case 0: this.stage0(); break;
+      case 1: this.stage1(); break;
+      case 2: this.stage2(this.fp, this.ff); break;
+      case 3: this.stage3(); break;
+    }
+    this.stage++;
+  }
+}
+registerProcessor('vocoder', Vocoder);`;
+
+/* Each voice: st = pitch in semitones; robot = ring-mod Hz; echo = amount (0-1), delay = seconds;
+   filter = [type, Hz, Q, gain dB]; dist = distortion (0-1); voc = formant shift ratio (enables natural pitch shifting); hp = low cut Hz; air = treble boost dB; breath = 0-1; trem = [Hz, depth]; growl = 0-1 rough throat; ls = [Hz, dB] low shelf; lp = low-pass Hz; bf = breath centre Hz; comp = [threshold dB, ratio, makeup dB]; vib = [Hz, depth in pitch ratio]. */
+const VOICE_GROUPS = [
+  ['Pitch', {
+    normal:   {name:'Normal',   hint:'Your voice',      st:0},
+    low:      {name:'Low',      hint:'−3 st',           st:-3},
+    deep:     {name:'Deep',     hint:'−6 st',           st:-6},
+    giant:    {name:'Giant',    hint:'−10 st',          st:-10},
+    high:     {name:'High',     hint:'+5 st',           st:5},
+    chipmunk: {name:'Chipmunk', hint:'+10 st',          st:10},
+  }],
+  ['People', {
+    woman:    {name:'Woman',    hint:'Natural female',  st:10, voc:1.2,  hp:150, air:3, breath:0.12, filter:['peaking', 3000, 1, 2]},
+    girl:     {name:'Girl',     hint:'Young female',    st:12, voc:1.3,  hp:170, air:3, breath:0.15, filter:['peaking', 3600, 1, 3]},
+    man:      {name:'Man',      hint:'Natural male',    st:-6, voc:0.87, hp:20,  air:0, breath:0,    filter:['peaking', 160, 0.8, 3]},
+    boy:      {name:'Boy',      hint:'Young male',      st:5,  voc:1.12, hp:110, air:2, breath:0.05,  filter:['peaking', 2400, 1, 2]},
+    kid:      {name:'Kid',      hint:'Small + bright',  st:7, filter:['highpass', 250, 0.7]},
+    elder:    {name:'Old timer',hint:'Shaky voice',     st:-2, vib:[5.5, 0.025], filter:['bandpass', 1400, 0.4]},
+  }],
+  ['Characters', {
+    robot:    {name:'Robot',    hint:'Metallic buzz',   st:-1, robot:50},
+    cyborg:   {name:'Cyborg',   hint:'Robot on radio',  st:-2, robot:30, filter:['bandpass', 2000, 0.8], dist:0.2},
+    alien:    {name:'Alien',    hint:'High + buzz',     st:7, robot:85, echo:0.2},
+    monster:  {name:'Monster',  hint:'Low + growl',     st:-9, dist:0.45, filter:['lowpass', 3200, 0.7]},
+    villain:  {name:'Villain',  hint:'Dark + gritty',   st:-5, dist:0.25, filter:['lowpass', 2600, 0.9], echo:0.12, delay:0.09},
+    ghost:    {name:'Ghost',    hint:'Floaty + echo',   st:3, echo:0.55, delay:0.35, trem:[5, 0.5]},
+    wobble:   {name:'Wobble',   hint:'Pitch swoops',    st:0, vib:[1.1, 0.12]},
+    underwater:{name:'Underwater',hint:'Muffled bubbles',st:-3, filter:['lowpass', 450, 1.2], vib:[3, 0.04]},
+    announcer:{name:'Announcer',hint:'Big + booming',   st:-3, filter:['peaking', 180, 0.8, 7], echo:0.22, delay:0.12},
+    // Deep pitch but clear: formants only slightly lowered, presence and rasp at 2.8 kHz,
+    // strong irregular growl, moderate chest. No distortion or high cut (both made it muffled/hissy).
+    batman:   {name:'Batman',   hint:'Deep gravel',     st:-8, voc:0.88, hp:70, air:1, breath:0.3, bf:2600, growl:0.9,
+               ls:[180, 1.5], filter:['peaking', 2800, 0.9, 4], comp:[-20, 3, 3]},
+    narrator: {name:'Narrator', hint:'Deep + warm',     st:-3, voc:0.9,  hp:60,  air:1, breath:0,   filter:['peaking', 150, 0.8, 4], echo:0.1, delay:0.05},
+    brute:    {name:'Brute',    hint:'Huge + rough',    st:-8, voc:0.8,  hp:50,  air:0, breath:0.15, dist:0.5, filter:['lowpass', 3000, 0.7]},
+  }],
+  ['Effects', {
+    radio:    {name:'Radio',    hint:'Walkie-talkie',   filter:['bandpass', 1800, 1.4], dist:0.55},
+    phone:    {name:'Old phone',hint:'Thin + crackly',  filter:['bandpass', 1200, 0.9], dist:0.18},
+    megaphone:{name:'Megaphone',hint:'Loud + harsh',    filter:['highpass', 650, 0.9], dist:0.75, echo:0.1, delay:0.08},
+    cave:     {name:'Cave',     hint:'Echoes',          st:-2, echo:0.45},
+    stadium:  {name:'Stadium',  hint:'Big long echo',   echo:0.5, delay:0.45},
+    fan:      {name:'Fan',      hint:'Choppy flutter',  trem:[24, 0.9]},
+  }],
+];
+const VOICES = Object.assign({}, ...VOICE_GROUPS.map(g => g[1]));
+
+const $ = s => document.querySelector(s);
+const PREFIX = 'masquerade-calls-v1-';
+let ctx, mic, shifter, vocoder, hp, air, breathGain, breathAmt, filter, shaper, shaperOut, trem, tremOsc, tremDepth, vibOsc, vibDepth, ring, ringOsc, echoDelay, echoFb, echoWet, master, monitorGain, analyser, outStream;
+let robotOn = false, muted = false;
+let peer, myCode = null, currentCall = null, incoming = null, timerInt = null, ringTimeout = null;
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 3200);
+}
+function show(id, on){ $(id).hidden = !on; }
+
+/* ---------- Audio graph ---------- */
+async function startAudio(){
+  const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
+  // 24 kHz is plenty for voice and halves the processing load; a 'balanced' buffer absorbs
+  // brief CPU spikes on phones. Fall back to the device default if the browser refuses.
+  const AC = window.AudioContext || window.webkitAudioContext;
+  try {
+    ctx = new AC({sampleRate:24000, latencyHint:'balanced'});
+    mic = ctx.createMediaStreamSource(stream);
+  } catch(e){
+    try { if (ctx) ctx.close(); } catch(_){}
+    ctx = new AC({latencyHint:'balanced'});
+    mic = ctx.createMediaStreamSource(stream);
+  }
+  const dest = ctx.createMediaStreamDestination();
+  await setupGraph(ctx, mic, dest);
+  limiter.connect(monitorGain); monitorGain.connect(ctx.destination);
+  outStream = dest.stream;
+  drawMeter();
+}
+
+/* Builds the whole voice chain from src to out. Used live, and offline to render test samples. */
+let limiter, lowShelf, darkLp, comp, compMakeup, growl, growlAmt, breathBand, breathSoft;
+async function setupGraph(c, src, out){
+  ctx = c;
+  const url = URL.createObjectURL(new Blob([WORKLET], {type:'application/javascript'}));
+  await ctx.audioWorklet.addModule(url);
+
+  shifter = new AudioWorkletNode(ctx, 'pitch-shifter', {numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[1]});
+  vocoder = new AudioWorkletNode(ctx, 'vocoder', {numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[1]});
+  hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 20; hp.Q.value = 0.7;
+  air = ctx.createBiquadFilter(); air.type = 'highshelf'; air.frequency.value = 6500; air.gain.value = 0;
+  // Breath: band-limited noise whose level follows the speaker's loudness.
+  const nbuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nbuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource(); noise.buffer = nbuf; noise.loop = true; noise.start();
+  breathBand = ctx.createBiquadFilter(); breathBand.type = 'bandpass'; breathBand.frequency.value = 3500; breathBand.Q.value = 0.7;
+  breathSoft = ctx.createBiquadFilter(); breathSoft.type = 'lowpass'; breathSoft.frequency.value = 6000;
+  breathGain = ctx.createGain(); breathGain.gain.value = 0;
+  const rect = ctx.createWaveShaper(); const rc = new Float32Array(1025);
+  for (let i = 0; i < rc.length; i++) rc[i] = Math.abs(i * 2 / (rc.length - 1) - 1); rect.curve = rc;
+  const follow = ctx.createBiquadFilter(); follow.type = 'lowpass'; follow.frequency.value = 18;
+  breathAmt = ctx.createGain(); breathAmt.gain.value = 0;
+  noise.connect(breathBand); breathBand.connect(breathSoft); breathSoft.connect(breathGain);
+  filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 20000; filter.Q.value = 0.7;
+  shaper = ctx.createWaveShaper(); shaper.oversample = '2x';
+  shaperOut = ctx.createGain();
+  trem = ctx.createGain(); trem.gain.value = 1;
+  tremOsc = ctx.createOscillator(); tremOsc.frequency.value = 5; tremOsc.start();
+  tremDepth = ctx.createGain(); tremDepth.gain.value = 0; tremOsc.connect(tremDepth); tremDepth.connect(trem.gain);
+  vibOsc = ctx.createOscillator(); vibOsc.frequency.value = 5; vibOsc.start();
+  vibDepth = ctx.createGain(); vibDepth.gain.value = 0; vibOsc.connect(vibDepth);
+  ring = ctx.createGain(); ring.gain.value = 1;
+  ringOsc = ctx.createOscillator(); ringOsc.type = 'sine'; ringOsc.frequency.value = 50; ringOsc.start();
+  echoDelay = ctx.createDelay(1); echoDelay.delayTime.value = 0.23;
+  echoFb = ctx.createGain(); echoFb.gain.value = 0;
+  echoWet = ctx.createGain(); echoWet.gain.value = 0;
+  master = ctx.createGain(); master.gain.value = 1;
+  monitorGain = ctx.createGain(); monitorGain.gain.value = 0;
+  analyser = ctx.createAnalyser(); analyser.fftSize = 512;
+  // Chest and darkness: low shelf for body, low-pass to take the edge off.
+  lowShelf = ctx.createBiquadFilter(); lowShelf.type = 'lowshelf'; lowShelf.frequency.value = 220; lowShelf.gain.value = 0;
+  darkLp = ctx.createBiquadFilter(); darkLp.type = 'lowpass'; darkLp.frequency.value = ctx.sampleRate / 2 - 100; darkLp.Q.value = 0.6;
+  // Voice compressor: off by default (threshold 0 dB); heavy for close-mic voices like Batman.
+  comp = ctx.createDynamicsCompressor(); comp.threshold.value = 0; comp.ratio.value = 1; comp.knee.value = 6;
+  comp.attack.value = 0.004; comp.release.value = 0.12;
+  compMakeup = ctx.createGain(); compMakeup.gain.value = 1;
+  // Growl: irregular amplitude roughness from slow-ish random noise (25-75 Hz), like a rough throat.
+  // Unlike a steady tremolo this has no single buzz frequency, so it reads as gravel, not a fan.
+  growl = ctx.createGain(); growl.gain.value = 1;
+  const gbuf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate), gd = gbuf.getChannelData(0);
+  for (let i = 0; i < gd.length; i++) gd[i] = Math.random() * 2 - 1;
+  const gnoise = ctx.createBufferSource(); gnoise.buffer = gbuf; gnoise.loop = true; gnoise.start();
+  const gHp = ctx.createBiquadFilter(); gHp.type = 'highpass'; gHp.frequency.value = 25;
+  const gLp = ctx.createBiquadFilter(); gLp.type = 'lowpass'; gLp.frequency.value = 75;
+  growlAmt = ctx.createGain(); growlAmt.gain.value = 0;
+  gnoise.connect(gHp); gHp.connect(gLp); gLp.connect(growlAmt); growlAmt.connect(growl.gain);
+
+  vibDepth.connect(shifter.parameters.get('pitch'));
+  src.connect(shifter); shifter.connect(vocoder); vocoder.connect(hp); hp.connect(lowShelf); lowShelf.connect(air); air.connect(filter);
+  vocoder.connect(rect); rect.connect(follow); follow.connect(breathAmt); breathAmt.connect(breathGain.gain);
+  // darkLp sits after the distortion so it also removes the fizz the distortion creates.
+  filter.connect(shaper); shaper.connect(shaperOut); shaperOut.connect(darkLp);
+  breathGain.connect(darkLp); darkLp.connect(comp); comp.connect(compMakeup); compMakeup.connect(growl);
+  growl.connect(trem); trem.connect(ring);
+  ring.connect(master);
+  ring.connect(echoDelay); echoDelay.connect(echoFb); echoFb.connect(echoDelay);
+  echoDelay.connect(echoWet); echoWet.connect(master);
+  limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -8; limiter.knee.value = 2; limiter.ratio.value = 20;
+  limiter.attack.value = 0.001; limiter.release.value = 0.15;
+  master.connect(limiter); limiter.connect(out); limiter.connect(analyser);
+}
+
+function setRobot(hz){
+  const on = !!hz;
+  if (on) ringOsc.frequency.setValueAtTime(hz, ctx.currentTime);
+  if (on === robotOn) return;
+  robotOn = on;
+  if (on){ ring.gain.value = 0; ringOsc.connect(ring.gain); }
+  else { ringOsc.disconnect(); ring.gain.value = 1; }
+}
+const curves = {};
+function distCurve(amount){
+  const key = amount.toFixed(2);
+  if (curves[key]) return curves[key];
+  const n = 1024, k = amount * 60, c = new Float32Array(n);
+  for (let i = 0; i < n; i++){ const x = i * 2 / (n - 1) - 1; c[i] = (1 + k) * x / (1 + k * Math.abs(x)); }
+  return curves[key] = c;
+}
+function applyVoice(v){
+  const t = ctx.currentTime, st = v.st || 0;
+  if (v.voc){
+    // Natural voices: pitch and formants shifted separately by the vocoder.
+    shifter.parameters.get('pitch').setValueAtTime(1, t);
+    vocoder.parameters.get('pitch').setValueAtTime(Math.pow(2, st / 12), t);
+    vocoder.parameters.get('formant').setValueAtTime(v.voc, t);
+    vocoder.parameters.get('active').setValueAtTime(1, t);
+  } else {
+    vocoder.parameters.get('active').setValueAtTime(0, t);
+    shifter.parameters.get('pitch').setValueAtTime(Math.pow(2, st / 12), t);
+  }
+  setRobot(v.robot || 0);
+  hp.frequency.setTargetAtTime(v.hp || 20, t, 0.02);
+  air.gain.setTargetAtTime(v.air || 0, t, 0.02);
+  breathAmt.gain.setTargetAtTime((v.breath || 0) * 0.35, t, 0.03); // calibrated on speech: 100% sits well under the voice
+  const bf = v.bf || 3500;
+  breathBand.frequency.setTargetAtTime(bf, t, 0.02); breathSoft.frequency.setTargetAtTime(Math.min(bf * 1.7, ctx.sampleRate / 2 - 100), t, 0.02);
+  const [lsF, lsG] = v.ls || [220, 0];
+  lowShelf.frequency.setTargetAtTime(lsF, t, 0.02); lowShelf.gain.setTargetAtTime(lsG, t, 0.02);
+  darkLp.frequency.setTargetAtTime(Math.min(v.lp || 20000, ctx.sampleRate / 2 - 100), t, 0.02);
+  const [cT, cR, cM] = v.comp || [0, 1, 0];
+  comp.threshold.setTargetAtTime(cT, t, 0.02); comp.ratio.setTargetAtTime(cR, t, 0.02);
+  compMakeup.gain.setTargetAtTime(Math.pow(10, cM / 20), t, 0.02);
+  // growl noise after band-limiting has rms ~0.04; scale so 100% gives roughly ±45% level roughness
+  const gr = v.growl || 0;
+  growlAmt.gain.setTargetAtTime(gr * 11, t, 0.03); growl.gain.setTargetAtTime(1, t, 0.02);
+
+  const [ft, ff, fq, fg] = v.filter || ['lowpass', 20000, 0.7, 0];
+  filter.type = ft; filter.frequency.setTargetAtTime(ff, t, 0.02); filter.Q.setTargetAtTime(fq, t, 0.02);
+  filter.gain.setTargetAtTime(fg || 0, t, 0.02);
+
+  const d = v.dist || 0;
+  shaper.curve = d ? distCurve(d) : null;
+  shaperOut.gain.setTargetAtTime(d ? 1 - d * 0.45 : 1, t, 0.02);
+
+  const [th, tdep] = v.trem || [5, 0];
+  tremOsc.frequency.setValueAtTime(th, t);
+  trem.gain.setTargetAtTime(1 - tdep / 2, t, 0.02);
+  tremDepth.gain.setTargetAtTime(tdep / 2, t, 0.02);
+
+  const [vh, vdep] = v.vib || [5, 0];
+  vibOsc.frequency.setValueAtTime(vh, t);
+  vibDepth.gain.setTargetAtTime(vdep, t, 0.02);
+
+  const e = v.echo || 0;
+  echoDelay.delayTime.setTargetAtTime(v.delay || 0.23, t, 0.05);
+  echoWet.gain.setTargetAtTime(e, t, 0.02);
+  echoFb.gain.setTargetAtTime(e * 0.75, t, 0.02);
+
+  $('#pitch').value = st;
+  $('#pitchOut').textContent = (st > 0 ? '+' : st < 0 ? '−' : '') + Math.abs(st) + ' semitones';
+}
+/* Per-voice tuning for the People voices, saved on this device. */
+let tweaks = {}; try { tweaks = JSON.parse(localStorage.getItem('voiceTweaks2') || '{}') || {}; } catch(e){}
+let currentVoice = 'normal';
+function tuned(name){ return Object.assign({}, VOICES[name], tweaks[name] || {}); }
+function saveTweaks(){ try { localStorage.setItem('voiceTweaks2', JSON.stringify(tweaks)); } catch(e){} }
+function showTune(name){
+  const v = VOICES[name], on = !!(v && v.voc);
+  $('#tunePanel').hidden = !on; $('#customSlider').hidden = on;
+  if (!on) return;
+  const t = tuned(name);
+  $('#tuneTitle').textContent = 'Tune ' + v.name;
+  $('#tPitch').value = t.st; $('#tShape').value = Math.round(t.voc * 100);
+  $('#tBreath').value = Math.round((t.breath || 0) * 100); $('#tAir').value = t.air || 0;
+  $('#tGrowl').value = Math.round((t.growl || 0) * 100); $('#tGrowlOut').textContent = Math.round((t.growl || 0) * 100) + '%';
+  $('#tPitchOut').textContent = (t.st > 0 ? '+' : t.st < 0 ? '−' : '') + Math.abs(t.st) + ' semitones';
+  $('#tShapeOut').textContent = Math.round(t.voc * 100) + '%';
+  $('#tBreathOut').textContent = Math.round((t.breath || 0) * 100) + '%';
+  $('#tAirOut').textContent = '+' + (t.air || 0) + ' dB';
+}
+function selectVoice(name){
+  currentVoice = name;
+  document.querySelectorAll('.voice').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === name)));
+  applyVoice(name === 'custom' ? {st:+$('#pitch').value} : tuned(name));
+  showTune(name);
+}
+function onTune(){
+  const name = currentVoice; if (!VOICES[name] || !VOICES[name].voc) return;
+  tweaks[name] = {st:+$('#tPitch').value, voc:+$('#tShape').value / 100, breath:+$('#tBreath').value / 100, air:+$('#tAir').value, growl:+$('#tGrowl').value / 100};
+  saveTweaks(); applyVoice(tuned(name)); showTune(name);
+}
+['#tPitch', '#tShape', '#tBreath', '#tGrowl', '#tAir'].forEach(id => $(id).addEventListener('input', onTune));
+$('#tuneReset').addEventListener('click', () => { delete tweaks[currentVoice]; saveTweaks(); selectVoice(currentVoice); toast('Voice reset to default.'); });
+
+function drawMeter(){
+  const data = new Uint8Array(analyser.fftSize);
+  const bar = $('#meter');
+  (function loop(){
+    analyser.getByteTimeDomainData(data);
+    let peak = 0; for (const x of data) peak = Math.max(peak, Math.abs(x - 128));
+    bar.style.width = Math.min(100, peak / 128 * 180) + '%';
+    requestAnimationFrame(loop);
+  })();
+}
+
+/* ---------- Calling (WebRTC via PeerJS) ---------- */
+function setNet(text, ok){ $('#netStatus').textContent = text; $('#netDot').className = 'dot' + (ok ? ' ok' : ''); }
+function fmt(code){ return code.slice(0,3) + ' ' + code.slice(3); }
+
+function initPeer(){
+  myCode = String(Math.floor(100000 + Math.random() * 900000));
+  $('#myCode').textContent = fmt(myCode);
+  setNet('Connecting…', false);
+  // ?server=host:port points at a self-hosted PeerJS server (used for local testing).
+  const srv = new URLSearchParams(location.search).get('server');
+  const opts = {debug:0};
+  if (srv){ const [h, port] = srv.split(':'); Object.assign(opts, {host:h, port:+port || 9000, path:'/', secure:location.protocol === 'https:'}); }
+  peer = new Peer(PREFIX + myCode, opts);
+  peer.on('open', () => {
+    setNet('Ready for calls', true);
+    $('#callBtn').disabled = false; $('#shareBtn').disabled = false;
+    const pre = new URLSearchParams(location.search).get('call');
+    if (pre && /^\d{6}$/.test(pre) && pre !== myCode && !$('#dialCode').value) $('#dialCode').value = pre;
+  });
+  peer.on('disconnected', () => { setNet('Reconnecting…', false); try { peer.reconnect(); } catch(e){} });
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id'){ peer.destroy(); initPeer(); return; }
+    if (err.type === 'peer-unavailable'){ toast('Nobody is using that code right now. Check the number.'); endCall(); return; }
+    if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error'){ setNet('Connection problem. Retrying…', false); return; }
+    toast('Call problem: ' + err.type);
+  });
+  peer.on('call', call => {
+    if (currentCall || incoming){ call.close(); return; }
+    incoming = call;
+    $('#ringFrom').textContent = fmt(call.peer.replace(PREFIX, ''));
+    show('#ringPanel', true); show('#dialPanel', false);
+    call.on('close', () => { if (incoming === call){ incoming = null; show('#ringPanel', false); show('#dialPanel', true); } });
+  });
+}
+
+function attachCall(call, label){
+  currentCall = call;
+  $('#callLabel').textContent = label;
+  $('#callWith').textContent = fmt(call.peer.replace(PREFIX, ''));
+  $('#callStatus').textContent = label === 'Calling' ? 'Ringing…' : 'Connecting…';
+  $('#timer').textContent = '0:00';
+  show('#dialPanel', false); show('#ringPanel', false); show('#callPanel', true);
+  clearTimeout(ringTimeout);
+  ringTimeout = setTimeout(() => { if (currentCall === call && !timerInt){ toast('No answer.'); endCall(); } }, 40000);
+
+  call.on('stream', remote => {
+    const a = $('#remote'); a.srcObject = remote; a.play().catch(() => {});
+    if (timerInt) return;
+    clearTimeout(ringTimeout);
+    $('#callStatus').textContent = 'Connected';
+    $('#callLabel').textContent = 'In call with';
+    const start = Date.now();
+    timerInt = setInterval(() => {
+      const s = Math.floor((Date.now() - start) / 1000);
+      $('#timer').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    }, 500);
+  });
+  call.on('close', () => { if (currentCall === call){ toast('Call ended.'); endCall(); } });
+  call.on('error', () => { if (currentCall === call){ toast('The call dropped.'); endCall(); } });
+  const pc = call.peerConnection;
+  if (pc) pc.addEventListener('iceconnectionstatechange', () => {
+    if (pc.iceConnectionState === 'failed' && currentCall === call){
+      toast('Could not connect. One of the networks may be blocking direct calls; try WiFi.');
+      endCall();
+    }
+  });
+}
+
+function endCall(){
+  const c = currentCall; currentCall = null;
+  if (c) try { c.close(); } catch(e){}
+  clearInterval(timerInt); timerInt = null; clearTimeout(ringTimeout);
+  $('#remote').srcObject = null;
+  show('#callPanel', false); show('#ringPanel', false); show('#dialPanel', true);
+}
+
+/* ---------- UI wiring ---------- */
+$('#startBtn').addEventListener('click', async () => {
+  $('#startBtn').disabled = true; $('#startErr').hidden = true;
+  try {
+    await startAudio();
+    show('#startPanel', false); show('#voicePanel', true); show('#dialPanel', true);
+    if (typeof Peer === 'undefined'){ setNet('Calling service did not load. Refresh the page.', false); return; }
+    initPeer();
+  } catch(e){
+    $('#startBtn').disabled = false;
+    const err = $('#startErr'); err.hidden = false;
+    err.textContent = e && e.name === 'NotAllowedError'
+      ? 'Microphone access was blocked. Allow it in your browser’s site settings, then try again.'
+      : 'Could not start audio: ' + (e && e.message || e);
+  }
+});
+
+(function renderVoices(){
+  const box = $('#voices');
+  for (const [title, voices] of VOICE_GROUPS){
+    const g = document.createElement('div'); g.className = 'vgroup';
+    const h = document.createElement('h3'); h.textContent = title; g.appendChild(h);
+    const grid = document.createElement('div'); grid.className = 'voices';
+    for (const [key, v] of Object.entries(voices)){
+      const b = document.createElement('button');
+      b.className = 'voice'; b.dataset.v = key; b.setAttribute('aria-pressed', String(key === 'normal'));
+      const n = document.createElement('b'); n.textContent = v.name;
+      const sm = document.createElement('small'); sm.textContent = v.hint;
+      b.append(n, sm); grid.appendChild(b);
+    }
+    g.appendChild(grid); box.appendChild(g);
+  }
+})();
+$('#voices').addEventListener('click', e => {
+  const b = e.target.closest('.voice'); if (b) selectVoice(b.dataset.v);
+});
+$('#pitch').addEventListener('input', () => selectVoice('custom'));
+$('#monitor').addEventListener('change', e => monitorGain.gain.setTargetAtTime(e.target.checked ? 1 : 0, ctx.currentTime, 0.02));
+
+$('#dialCode').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
+$('#dialForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const code = $('#dialCode').value;
+  if (!/^\d{6}$/.test(code)){ toast('Enter the 6-digit code.'); return; }
+  if (code === myCode){ toast('That’s your own code.'); return; }
+  if (ctx.state === 'suspended') ctx.resume();
+  attachCall(peer.call(PREFIX + code, outStream), 'Calling');
+});
+$('#answerBtn').addEventListener('click', () => {
+  const call = incoming; incoming = null; if (!call) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  call.answer(outStream);
+  attachCall(call, 'In call with');
+});
+$('#declineBtn').addEventListener('click', () => {
+  const call = incoming; incoming = null; if (call) call.close();
+  show('#ringPanel', false); show('#dialPanel', true);
+});
+$('#hangBtn').addEventListener('click', endCall);
+$('#muteBtn').addEventListener('click', e => {
+  muted = !muted;
+  master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.01);
+  e.target.textContent = muted ? 'Unmute' : 'Mute';
+  e.target.setAttribute('aria-pressed', String(muted));
+});
+$('#shareBtn').addEventListener('click', async () => {
+  const link = location.origin + location.pathname + '?call=' + myCode;
+  try { await navigator.clipboard.writeText(link); toast('Invite link copied.'); }
+  catch(e){ toast(link); }
+});
+/* ---------- Installable app ---------- */
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
+(function installHint(){
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  let dismissed = false; try { dismissed = localStorage.getItem('installDismissed') === '1'; } catch(e){}
+  if (ios && !standalone && !dismissed) show('#installPanel', true);
+  $('#installDismiss').addEventListener('click', () => { show('#installPanel', false); try { localStorage.setItem('installDismissed', '1'); } catch(e){} });
+})();
+document.addEventListener('visibilitychange', () => { if (ctx && ctx.state === 'suspended' && !document.hidden) ctx.resume(); });
+</script>
+</body>
+</html>
