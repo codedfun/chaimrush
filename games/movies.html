@@ -63,7 +63,12 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
 .close{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--panel2);display:grid;place-items:center}
 .close svg{width:20px;height:20px}
 .screen{width:100%;max-width:900px;aspect-ratio:16/9;max-height:calc(100vh - 170px);background:#000;border-radius:12px;overflow:hidden}
-.screen iframe{width:100%;height:100%;border:0;display:block}
+.screen{position:relative}
+.screen video{width:100%;height:100%;display:block;background:#000}
+.screen .msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:14px;line-height:1.5}
+.parts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:900px}
+.parts button{border:0;border-radius:999px;background:var(--panel2);padding:7px 14px;font-size:13.5px;font-weight:500;color:var(--muted)}
+.parts button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
 .player p{margin:0;font-size:13px;color:var(--muted);text-align:center;max-width:600px;line-height:1.45}
 .player p a{color:var(--gold)}
 </style>
@@ -92,7 +97,8 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
     <button class="close" id="close" aria-label="Close the movie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="screen" id="screen"></div>
-  <p>Tap play in the video. Use the full-screen button in the player to watch sideways. <a id="plink" target="_blank" rel="noopener">Open on the Internet Archive</a></p>
+  <div class="parts" id="parts" role="group" aria-label="Parts of this movie" hidden></div>
+  <p>Use the full-screen button in the player to watch sideways.</p>
 </div>
 
 <script>
@@ -167,17 +173,51 @@ let lastFocus = null;
 function openMovie(id, title, year) {
   lastFocus = document.activeElement;
   $("#ptitle").textContent = title; if (year) { const s = document.createElement("small"); s.textContent = year; $("#ptitle").appendChild(s); }
-  const f = document.createElement("iframe");
-  f.src = "https://archive.org/embed/" + encodeURIComponent(id); f.title = title;
-  f.allow = "fullscreen; autoplay; picture-in-picture"; f.allowFullscreen = true; f.referrerPolicy = "no-referrer";
-  $("#screen").replaceChildren(f);
-  $("#plink").href = "https://archive.org/details/" + encodeURIComponent(id);
+  showMsg("Getting the movie ready…"); $("#parts").hidden = true;
   $("#player").hidden = false; document.body.style.overflow = "hidden"; $("#close").focus();
   history.pushState({ movie: id }, "");
+  loadVideo(id, ++playReq);
+}
+let playReq = 0;
+function showMsg(t) { const m = document.createElement("div"); m.className = "msg"; m.textContent = t; $("#screen").replaceChildren(m); }
+// pick a video file iPhones can play (MP4), one per part of the movie
+const RANK = { "h.264": 1, "h.264 IA": 2, "MPEG4": 3, "h.264 HD": 4, "512Kb MPEG4": 5 };
+function pickParts(files) {
+  const groups = new Map();
+  for (const f of files || []) {
+    if (!/\.mp4$/i.test(f.name || "") || /trailer|sample/i.test(f.name)) continue;
+    const key = f.source === "original" ? f.name : (f.original || f.name), rank = RANK[f.format] || 9;
+    const cur = groups.get(key); if (!cur || rank < cur.rank) groups.set(key, { name: f.name, rank });
+  }
+  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(e => e[1].name);
+}
+async function loadVideo(id, my) {
+  try {
+    const res = await fetch("https://archive.org/metadata/" + encodeURIComponent(id)); if (!res.ok) throw new Error(res.status);
+    const meta = await res.json(); if (my !== playReq) return;
+    const parts = pickParts(meta.files);
+    if (!parts.length) { showMsg("Sorry, this movie can't play on this page. Pick another one."); return; }
+    const src = name => "https://archive.org/download/" + encodeURIComponent(id) + "/" + name.split("/").map(encodeURIComponent).join("/");
+    const play = i => {
+      const v = document.createElement("video");
+      v.controls = true; v.playsInline = true; v.preload = "metadata"; v.src = src(parts[i]);
+      v.poster = "https://archive.org/services/img/" + encodeURIComponent(id);
+      v.onerror = () => { if (my === playReq) showMsg("This movie couldn't play. Check your connection or pick another one."); };
+      if (i < parts.length - 1) v.onended = () => { play(i + 1); };
+      $("#screen").replaceChildren(v);
+      [...$("#parts").children].forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
+      v.play().catch(() => {});
+    };
+    $("#parts").replaceChildren(...(parts.length > 1 ? parts.map((_, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = "Part " + (i + 1); b.onclick = () => play(i); return b; }) : []));
+    $("#parts").hidden = parts.length < 2;
+    play(0);
+  } catch {
+    if (my === playReq) showMsg(navigator.onLine === false ? "Movies need an internet connection." : "The movie couldn't load right now. Close it and try again.");
+  }
 }
 function closeMovie(fromHistory) {
   if ($("#player").hidden) return;
-  $("#screen").replaceChildren(); $("#player").hidden = true; document.body.style.overflow = ""; lastFocus?.focus?.();
+  playReq++; $("#screen").querySelector("video")?.pause(); $("#screen").replaceChildren(); $("#player").hidden = true; document.body.style.overflow = ""; lastFocus?.focus?.();
   if (!fromHistory && history.state?.movie) history.back();
 }
 $("#close").onclick = () => closeMovie(false);
