@@ -120,7 +120,7 @@ h1 span{color:var(--gold)}
   </form>
 </div>
 
-<script src="../vendor/mqtt.min.js"></script>
+<script src="../vendor/peerjs.min.js"></script>
 <script>
 (() => {
 const $ = s => document.querySelector(s);
@@ -179,7 +179,7 @@ function say(text) {
   const st = $("#status");
   if (text) { st.innerHTML = text; return; }
   const col = t => t === 1 ? "r" : "y", name = t => t === 1 ? "red" : "yellow";
-  if (mode === "online") st.innerHTML = !net.peer ? "Play online" : turn === net.me ? `<span class="${col(turn)}">Your turn (${name(turn)})</span>` : `<span class="${col(turn)}">${net.peer.pin}'s turn</span>`;
+  if (mode === "online") st.innerHTML = !net.match ? "Play online" : turn === net.me ? `<span class="${col(turn)}">Your turn (${name(turn)})</span>` : `<span class="${col(turn)}">${net.match.pin}'s turn</span>`;
   else st.innerHTML = mode === "cpu" ? (turn === 1 ? '<span class="r">Your turn</span>' : '<span class="y">Computer is thinking…</span>')
                        : (turn === 1 ? '<span class="r">Red\'s turn</span>' : '<span class="y">Yellow\'s turn</span>');
 }
@@ -189,7 +189,7 @@ function drop(c) {
   const win = lineFrom(grid, r, c);
   if (win) { over = true; win.forEach(([rr, cc]) => cells[rr * COLS + cc].classList.add("win"));
     const c = turn === 1 ? "r" : "y";
-    say(mode === "online" ? (turn === net.me ? `<span class="${c}">You win!</span>` : `<span class="${c}">${net.peer.pin} wins</span>`)
+    say(mode === "online" ? (turn === net.me ? `<span class="${c}">You win!</span>` : `<span class="${c}">${net.match.pin} wins</span>`)
       : mode === "cpu" ? (turn === 1 ? '<span class="r">You win!</span>' : '<span class="y">The computer wins</span>') : (turn === 1 ? '<span class="r">Red wins!</span>' : '<span class="y">Yellow wins!</span>')); return true; }
   if (grid[0].every(Boolean)) { over = true; say("It's a draw"); return true; }
   turn = 3 - turn; say(); return true;
@@ -205,7 +205,7 @@ function cpuMove() {
 }
 board.addEventListener("click", e => {
   if (!board.classList.contains("play") || over || busy || (mode === "cpu" && turn === 2)) return;
-  if (mode === "online" && (!net.peer || turn !== net.me)) return;
+  if (mode === "online" && (!net.match || turn !== net.me)) return;
   const cell = e.target.closest(".cell"); if (!cell) return;
   const c = cells.indexOf(cell) % COLS, n = moves();
   if (!drop(c)) return;
@@ -225,67 +225,84 @@ $("#vs2").onclick = () => setMode("local");
 $("#vsNet").onclick = () => setMode("online");
 $("#again").onclick = () => {
   if (mode !== "online") return startGame();
-  if (!net.peer) return;
+  if (!net.match) return;
   if (!over && moves()) { netMsg("Finish this game first, or leave it"); return; }
   newRound(net.round + 1); send({ t: "again", round: net.round });
 };
 
-/* ===== online: both phones talk through a public message relay; each phone listens on its PIN ===== */
-const BROKERS = window.__C4_BROKERS || ["wss://broker.hivemq.com:8884/mqtt", "wss://broker.emqx.io:8084/mqtt"];
-const TOPIC = "chaimrush-codedfun/four/v1/";
-const net = { client: null, pin: null, id: Math.random().toString(36).slice(2, 10), peer: null, me: 1, base: 1, round: 0, seen: 0, inviting: null, invite: null, brokerIx: 0 };
+/* ===== online: phones connect directly (WebRTC) through the free public PeerJS server, like Masquerade; each phone's PIN is its address ===== */
+const PREFIX = "chaimrush-four-";
+const net = { peer: null, pin: null, id: Math.random().toString(36).slice(2, 10), match: null, me: 1, base: 1, round: 0, seen: 0, inviting: null, invite: null, conns: new Map() };
 const netMsg = t => { $("#netMsg").textContent = t; };
 function send(msg, toPin) {
-  const pin = toPin || net.peer?.pin; if (!net.client || !pin) return;
-  net.client.publish(TOPIC + pin, JSON.stringify({ ...msg, from: net.pin, id: net.id, to: msg.to || net.peer?.id }), { qos: 1 });
+  const pin = toPin || net.match?.pin; if (!net.peer || !pin) return;
+  const data = { ...msg, from: net.pin, id: net.id, to: msg.to || net.match?.id };
+  let c = net.conns.get(pin);
+  if (!c || c.closed) {
+    c = { conn: net.peer.connect(PREFIX + pin, { reliable: true, serialization: "json" }), queue: [], open: false, closed: false };
+    net.conns.set(pin, c); wire(c, pin);
+  }
+  if (c.open) c.conn.send(data); else c.queue.push(data);
+}
+function wire(c, pin) {
+  c.conn.on("open", () => { c.open = true; for (const d of c.queue.splice(0)) c.conn.send(d); });
+  c.conn.on("data", d => onNet(d));
+  const gone = () => { c.closed = true; c.open = false; if (net.conns.get(pin) === c) net.conns.delete(pin);
+    if (net.match && net.match.pin === pin) { net.match = null; over = true; say("Your friend left"); netMsg("Your friend left the game"); syncOnlineUI(); } };
+  c.conn.on("close", gone); c.conn.on("error", gone);
 }
 function goOnline() {
   $("#online").hidden = false; syncOnlineUI();
-  if (net.client) { if (net.pin) { $("#myPin").textContent = net.pin; netMsg(net.peer ? "" : "Share your PIN, or enter a friend's PIN"); } return; }
-  if (!window.mqtt) { netMsg("Online play couldn't load. Check your connection and reload."); return; }
+  if (net.peer && !net.peer.destroyed) { if (net.pin) { $("#myPin").textContent = net.pin; netMsg(net.match ? "" : "Share your PIN, or enter a friend's PIN"); } return; }
+  if (typeof Peer === "undefined") { netMsg("Online play couldn't load. Check your connection and reload."); return; }
   connect();
 }
 function connect() {
-  const url = BROKERS[net.brokerIx % BROKERS.length]; netMsg("Connecting…");
-  const client = mqtt.connect(url, { clientId: "c4_" + net.id, clean: true, connectTimeout: 8000, reconnectPeriod: 3000, keepalive: 30 });
-  net.client = client; let ok = false;
-  const giveUp = setTimeout(() => { if (!ok) { client.end(true); net.client = null; net.brokerIx++; if (net.brokerIx < BROKERS.length * 2) connect(); else netMsg("Couldn't connect to online play. Check your connection and tap Online again."); } }, 9000);
-  client.on("connect", () => {
-    ok = true; clearTimeout(giveUp);
-    if (!net.pin) net.pin = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
-    client.subscribe(TOPIC + net.pin, { qos: 1 }, err => {
-      if (err) { netMsg("Couldn't get a PIN. Tap Online again."); return; }
-      $("#myPin").textContent = net.pin; netMsg(net.peer ? "Connected" : "Share your PIN, or enter a friend's PIN");
-    });
+  net.pin = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+  $("#myPin").textContent = "···"; netMsg("Connecting…");
+  const opts = { debug: 0, ...(window.__C4_PEER || {}) };
+  const peer = new Peer(PREFIX + net.pin, opts); net.peer = peer;
+  peer.on("open", () => { $("#myPin").textContent = net.pin; netMsg(net.match ? "Connected" : "Share your PIN, or enter a friend's PIN"); });
+  peer.on("connection", conn => {
+    const pin = conn.peer.replace(PREFIX, ""), c = { conn, queue: [], open: false, closed: false };
+    const old = net.conns.get(pin); if (old && old.conn !== conn) { old.closed = true; }
+    net.conns.set(pin, c); wire(c, pin);
   });
-  client.on("offline", () => { if (ok) netMsg("Connection lost. Reconnecting…"); });
-  client.on("message", (_, payload) => { let m; try { m = JSON.parse(String(payload)); } catch { return; } onNet(m); });
+  peer.on("disconnected", () => { netMsg("Reconnecting…"); try { peer.reconnect(); } catch {} });
+  peer.on("error", err => {
+    if (err.type === "unavailable-id") { peer.destroy(); connect(); return; }          // PIN already taken: pick another
+    if (err.type === "peer-unavailable") {
+      const pin = net.inviting?.pin; if (pin) { net.conns.delete(pin); net.inviting = null; netMsg(`Nobody is using PIN ${pin} right now. Check the number.`); } return;
+    }
+    if (err.type === "network" || err.type === "server-error" || err.type === "socket-error") { netMsg("Connection problem. Retrying…"); return; }
+    netMsg("Online problem: " + err.type);
+  });
 }
 function syncOnlineUI() {
-  const inGame = !!net.peer;
+  const inGame = !!net.match;
   $("#joinForm").hidden = inGame; $("#joinLbl").hidden = inGame; $("#leaveBtn").hidden = !inGame;
   $("#inviteBox").hidden = !net.invite || inGame;
   $("#again").textContent = mode === "online" ? "Rematch" : "New game";
 }
 function startMatch(peer, base) {
-  net.peer = peer; net.base = base; net.seen = Date.now(); net.inviting = null; net.invite = null;
+  net.match = peer; net.base = base; net.seen = Date.now(); net.inviting = null; net.invite = null;
   newRound(0); netMsg(`Playing ${peer.pin}. ${net.me === 1 ? "You're red and go first." : "You're yellow. They go first."}`); syncOnlineUI();
 }
 function newRound(r) { net.round = r; net.me = r % 2 ? 3 - net.base : net.base; startGame(); syncOnlineUI(); } // colours swap every game; red always starts
 function leaveMatch(quiet) {
-  if (net.peer) send({ t: "bye" });
-  net.peer = null; net.inviting = null;
+  if (net.match) send({ t: "bye" });
+  net.match = null; net.inviting = null;
   if (!quiet) { startGame(); netMsg("Share your PIN, or enter a friend's PIN"); }
   syncOnlineUI();
 }
 function onNet(m) {
   if (!m || m.id === net.id || typeof m.t !== "string") return;
   if (m.to && m.to !== net.id) return;
-  const fromPeer = net.peer && m.id === net.peer.id;
+  const fromPeer = net.match && m.id === net.match.id;
   if (fromPeer) net.seen = Date.now();
   switch (m.t) {
     case "invite":
-      if (net.peer || mode !== "online") { send({ t: "busy", to: m.id }, m.from); return; }
+      if (net.match || mode !== "online") { send({ t: "busy", to: m.id }, m.from); return; }
       net.invite = { pin: m.from, id: m.id }; $("#inviteText").textContent = `${m.from} wants to play!`; syncOnlineUI();
       if (navigator.vibrate) navigator.vibrate(120);
       break;
@@ -299,27 +316,27 @@ function onNet(m) {
       if (m.n !== moves() || typeof m.c !== "number") return;
       drop(m.c); break;
     case "again": if (fromPeer && m.round === net.round + 1) newRound(m.round); break;
-    case "bye": if (fromPeer) { net.peer = null; netMsg("Your friend left the game"); say("Your friend left"); over = true; syncOnlineUI(); } break;
+    case "bye": if (fromPeer) { net.match = null; netMsg("Your friend left the game"); say("Your friend left"); over = true; syncOnlineUI(); } break;
     case "ping": if (fromPeer) send({ t: "pong" }); break;
   }
 }
 $("#joinForm").addEventListener("submit", e => {
   e.preventDefault(); const pin = $("#friendPin").value.replace(/\D/g, "");
   if (pin.length !== 3) { netMsg("PINs are 3 digits"); return; }
-  if (!net.client || !net.pin) { netMsg("Still connecting… try again in a moment"); return; }
+  if (!net.peer || !net.peer.open || !net.pin) { netMsg("Still connecting… try again in a moment"); return; }
   if (pin === net.pin) { netMsg("That's your own PIN. Enter your friend's"); return; }
   net.inviting = { pin }; send({ t: "invite" }, pin); netMsg(`Asking ${pin} to play…`); $("#friendPin").blur();
-  setTimeout(() => { if (net.inviting?.pin === pin && !net.peer) { net.inviting = null; netMsg(`No answer from ${pin}. Check the PIN and that they're on the Online screen.`); } }, 30000);
+  setTimeout(() => { if (net.inviting?.pin === pin && !net.match) { net.inviting = null; netMsg(`No answer from ${pin}. Check the PIN and that they're on the Online screen.`); } }, 30000);
 });
 $("#inviteYes").onclick = () => { const inv = net.invite; if (!inv) return; send({ t: "accept", to: inv.id }, inv.pin); startMatch(inv, 2); };
 $("#inviteNo").onclick = () => { const inv = net.invite; if (!inv) return; send({ t: "decline", to: inv.id }, inv.pin); net.invite = null; syncOnlineUI(); };
 $("#leaveBtn").onclick = () => leaveMatch(false);
 setInterval(() => {
-  if (!net.peer) return;
+  if (!net.match) return;
   send({ t: "ping" });
-  if (Date.now() - net.seen > 25000) { net.peer = null; over = true; say("Your friend disconnected"); netMsg("Lost touch with your friend. Enter a PIN to play again."); syncOnlineUI(); }
+  if (Date.now() - net.seen > 25000) { net.match = null; over = true; say("Your friend disconnected"); netMsg("Lost touch with your friend. Enter a PIN to play again."); syncOnlineUI(); }
 }, 5000);
-addEventListener("pagehide", () => { if (net.peer) send({ t: "bye" }); });
+addEventListener("pagehide", () => { if (net.match) send({ t: "bye" }); });
 })();
 </script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("../sw.js", { scope: "../" }).catch(() => {}));</script>
