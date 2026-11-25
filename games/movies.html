@@ -81,7 +81,7 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
   <a class="back" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>More games</a>
   <header>
     <h1>Free <span>Cartoons</span></h1>
-    <p>The classic Superman and Popeye cartoons that are free to watch, with no ads and no sign-up. They're the old public-domain ones from the Internet Archive, filtered to keep out anything that isn't kid-friendly.</p>
+    <p>The classic Superman and Popeye cartoons that are free to watch, with no ads and no sign-up. They're the old public-domain ones from the Internet Archive.</p>
   </header>
   <form class="search" id="searchForm" role="search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
@@ -122,20 +122,6 @@ const CATS = [
   { label: "Popeye", q: POPEYE_Q, sort: "year asc" },
 ];
 const ALL = `(${SUPERMAN_Q} OR ${POPEYE_Q})`;
-// anything that sounds grown-up is left out, by title, subject and description
-const BLOCK = ["sex", "sexy", "sexual", "sexploitation", "exploitation", "nude", "nudes", "nudity", "naked", "nudist", "nudism", "erotic", "erotica", "adult", "adults only",
-  "xxx", "porn", "porno", "pornography", "stag", "striptease", "stripper", "strip", "burlesque", "peep", "pinup", "pin-up", "lingerie", "bikini", "lust", "seduction", "seductress", "sin", "sinners", "vice",
-  "prostitute", "prostitution", "brothel", "hooker", "orgy", "playboy", "risque", "pre-code", "precode", "harlot", "mistress", "affair", "honeymoon", "wedding night", "virgin",
-  "drug", "drugs", "marijuana", "reefer", "cocaine", "heroin", "narcotic", "narcotics", "opium", "dope", "addict",
-  "gore", "gory", "slasher", "massacre", "cannibal", "zombie", "torture", "maniac", "serial killer", "satan", "satanic", "devil worship", "witchcraft", "occult",
-  "propaganda", "nazi", "hitler", "minstrel", "blackface", "racist", "racism", "stereotype", "censored eleven", "boop", "japoteurs", "eleventh hour", "jungle drums", "jap", "japs", "mr jap", "scrap the japs", "spinach fer britain"];
-// grown-up health and social films in the learning collection
-const BLOCK_LEARN = [  "venereal", "syphilis", "pregnancy", "pregnant", "childbirth", "birth control", "menstruation", "puberty", "reproduction", "dating", "petting", "marriage", "divorce",
-  "smoking", "cigarette", "alcohol", "alcoholism", "drunk", "drinking", "liquor", "crime", "criminal", "gun", "guns", "atomic", "nuclear", "bomb", "war", "combat", "army", "navy", "soldier", "juvenile delinquency", "delinquent"];
-const LEARN_RE = new RegExp("\\b(" + BLOCK_LEARN.join("|") + ")\\b", "i");
-const BLOCK_RE = new RegExp("\\b(" + BLOCK.map(w => w.replace(/[-]/g, "[- ]?")).join("|") + ")\\b", "i");
-// a short list in the search itself (long searches can fail); every word in BLOCK is checked again on each result below
-const SAFE = " AND NOT title:(" + ["sex", "nude", "nudist", "erotic", "adult", "xxx", "porn", "burlesque", "striptease", "stag", "propaganda", "nazi", "hitler", "minstrel", "blackface", "boop"].join(" OR ") + ")";
 // load JSON from the Internet Archive; if the browser refuses the normal way, load it as a script instead
 function jsonp(url) {
   return new Promise((resolve, reject) => {
@@ -170,8 +156,8 @@ function syncChips() { [...chips.children].forEach((b, i) => b.setAttribute("ari
 
 function cleanTerm(t) { return t.replace(/[^\p{L}\p{N}\s'-]/gu, " ").trim().split(/\s+/).filter(Boolean).slice(0, 6); }
 function query() {
-  if (term) { const words = cleanTerm(term); if (words.length) return `${ALL} AND mediatype:(movies) AND title:(${words.map(w => w.replace(/'/g, "")).join(" AND ")})${SAFE}`; }
-  return `${CATS[cat].q} AND mediatype:(movies)${SAFE}`;
+  if (term) { const words = cleanTerm(term); if (words.length) return `${ALL} AND mediatype:(movies) AND title:(${words.map(w => w.replace(/'/g, "")).join(" AND ")})`; }
+  return `${CATS[cat].q} AND mediatype:(movies)`;
 }
 async function load() {
   if (loading) return; loading = true; const my = ++req;
@@ -199,10 +185,6 @@ function reset() { req++; loading = false; page = 1; total = 0; $("#grid").repla
 const text = v => (Array.isArray(v) ? v.join(" ") : String(v || "")).replace(/<[^>]*>/g, " ");
 function addMovie(d) {
   if (!d.identifier || hidden.has(d.identifier)) return;
-  const all = text(d.title) + " " + text(d.subject) + " " + text(d.description);
-  if (BLOCK_RE.test(all)) return;
-  if (/prelinger/i.test(text(d.collection)) && LEARN_RE.test(all)) return;
-  if (/\b(trailer|preview|teaser)\b/i.test(text(d.title))) return;
   const title = Array.isArray(d.title) ? d.title[0] : (d.title || d.identifier), year = d.year ? String(d.year).slice(0, 4) : "";
   const b = document.createElement("button"); b.type = "button"; b.className = "movie"; b.setAttribute("aria-label", `Watch ${title}${year ? ", " + year : ""}`);
   const poster = document.createElement("div"); poster.className = "poster";
