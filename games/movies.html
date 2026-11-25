@@ -78,18 +78,18 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
 <div class="wrap">
   <a class="back" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>More games</a>
   <header>
-    <h1>Free <span>Movies</span></h1>
-    <p>Classic family movies and cartoons that are free to watch, with no ads and no sign-up. They're older public-domain films from the Internet Archive, filtered to keep out anything grown-up.</p>
+    <h1>Free <span>Cartoons</span></h1>
+    <p>Classic cartoons and animated movies that are free to watch, with no ads and no sign-up. They're older public-domain cartoons from the Internet Archive, filtered to keep out anything grown-up.</p>
   </header>
   <form class="search" id="searchForm" role="search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-    <input id="q" type="search" placeholder="Search movie titles" aria-label="Search movie titles" enterkeyhint="search" autocomplete="off">
+    <input id="q" type="search" placeholder="Search cartoons" aria-label="Search cartoons" enterkeyhint="search" autocomplete="off">
     <button type="submit">Search</button>
   </form>
   <div class="chips" id="chips" role="group" aria-label="Categories"></div>
   <div class="grid" id="grid"></div>
-  <div class="status" id="status" aria-live="polite">Loading movies…</div>
-  <button class="more" id="more" hidden>Show more movies</button>
+  <div class="status" id="status" aria-live="polite">Loading cartoons…</div>
+  <button class="more" id="more" hidden>Show more cartoons</button>
 </div>
 
 <div class="player" id="player" hidden role="dialog" aria-modal="true" aria-labelledby="ptitle">
@@ -100,7 +100,7 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
   <div class="screen" id="screen"></div>
   <div class="parts" id="parts" role="group" aria-label="Parts of this movie" hidden></div>
   <p>Use the full-screen button in the player to watch sideways.</p>
-  <button class="hide" id="hideBtn" type="button">Not OK for kids? Hide this movie</button>
+  <button class="hide" id="hideBtn" type="button">Not OK for kids? Hide this cartoon</button>
 </div>
 
 <script>
@@ -109,25 +109,21 @@ header p{margin:8px 0 0;color:var(--muted);font-size:14.5px;line-height:1.45}
 const $ = s => document.querySelector(s);
 // Internet Archive collections of public-domain films
 // Kid-safe: only family-friendly collections, plus a list of well-known family classics
-const FAMILY_TITLES = ["The General", "Sherlock Jr.", "The Kid", "Safety Last", "The Gold Rush", "The Navigator", "Steamboat Bill, Jr.",
-  "Our Hospitality", "The Circus", "Gulliver's Travels", "Jack and the Beanstalk", "The Little Princess", "A Trip to the Moon",
-  "The Lost World", "Santa Claus Conquers the Martians", "Africa Screams", "Royal Wedding", "His Girl Friday", "The Thief of Bagdad",
-  "Mr. Robinson Crusoe", "The Three Musketeers", "Robin Hood", "Tom Sawyer", "Heidi", "Five Little Peppers", "Hoppity Goes to Town",
-  "Mr. Bug Goes to Town", "The Mark of Zorro", "Peter Pan", "Alice in Wonderland", "Pinocchio"];
-const COLLS = "collection:(classic_cartoons OR comedy_films OR silent_films OR feature_films)";
+// Cartoons only: the Internet Archive's classic cartoons, plus a few full-length animated movies
+const ANIMATED_FEATURES = ["Gulliver's Travels", "Mr. Bug Goes to Town", "Hoppity Goes to Town", "The Adventures of Prince Achmed"];
+const FEATURES_Q = `(collection:(feature_films OR silent_films) AND title:(${ANIMATED_FEATURES.map(t => '"' + t + '"').join(" OR ")}))`;
 const CATS = [
-  { label: "Family movies", q: `collection:(feature_films OR silent_films OR comedy_films) AND title:(${FAMILY_TITLES.map(t => '"' + t.replace(/"/g, "") + '"').join(" OR ")})` },
   { label: "Cartoons", q: "collection:(classic_cartoons)" },
-  { label: "Comedy", q: "collection:(comedy_films)" },
-  { label: "Silent films", q: "collection:(silent_films)" },
+  { label: "Animated movies", q: FEATURES_Q },
 ];
-const ALL = COLLS;
+const ALL = `(collection:(classic_cartoons) OR ${FEATURES_Q})`;
 // anything that sounds grown-up is left out, by title, subject and description
 const BLOCK = ["sex", "sexy", "sexual", "sexploitation", "exploitation", "nude", "nudes", "nudity", "naked", "nudist", "nudism", "erotic", "erotica", "adult", "adults only",
   "xxx", "porn", "porno", "pornography", "stag", "striptease", "stripper", "strip", "burlesque", "peep", "pinup", "pin-up", "lingerie", "bikini", "lust", "seduction", "seductress", "sin", "sinners", "vice",
   "prostitute", "prostitution", "brothel", "hooker", "orgy", "playboy", "risque", "pre-code", "precode", "harlot", "mistress", "affair", "honeymoon", "wedding night", "virgin",
   "drug", "drugs", "marijuana", "reefer", "cocaine", "heroin", "narcotic", "narcotics", "opium", "dope", "addict",
-  "gore", "gory", "slasher", "massacre", "cannibal", "zombie", "torture", "maniac", "serial killer", "satan", "satanic", "devil worship", "witchcraft", "occult"];
+  "gore", "gory", "slasher", "massacre", "cannibal", "zombie", "torture", "maniac", "serial killer", "satan", "satanic", "devil worship", "witchcraft", "occult",
+  "propaganda", "nazi", "hitler", "minstrel", "blackface", "racist", "racism", "stereotype", "censored eleven", "boop"];
 const BLOCK_RE = new RegExp("\\b(" + BLOCK.map(w => w.replace(/[-]/g, "[- ]?")).join("|") + ")\\b", "i");
 const blockQ = BLOCK.map(w => '"' + w + '"').join(" OR ");
 const SAFE = ` AND NOT title:(${blockQ}) AND NOT subject:(${blockQ})`; // descriptions are checked when each movie arrives
@@ -150,7 +146,7 @@ function query() {
 }
 async function load() {
   if (loading) return; loading = true; const my = ++req;
-  $("#more").hidden = true; $("#status").hidden = false; $("#status").textContent = page === 1 ? "Loading movies…" : "Loading more…";
+  $("#more").hidden = true; $("#status").hidden = false; $("#status").textContent = page === 1 ? "Loading cartoons…" : "Loading more…";
   const url = "https://archive.org/advancedsearch.php?" + new URLSearchParams({ q: query(), "fl[]": "identifier", rows: ROWS, page, output: "json", "sort[]": "downloads desc" })
     + "&fl[]=title&fl[]=year&fl[]=subject&fl[]=description";
   try {
@@ -159,13 +155,13 @@ async function load() {
     const docs = data.response?.docs || []; total = data.response?.numFound || 0;
     for (const d of docs) addMovie(d);
     const shown = $("#grid").children.length;
-    if (!shown) { $("#status").textContent = term ? `No movies found for "${term}". Try another word.` : "No movies here right now."; }
+    if (!shown) { $("#status").textContent = term ? `No cartoons found for "${term}". Try another word.` : "No cartoons here right now."; }
     else { $("#status").hidden = true; }
     $("#more").hidden = shown >= total;
   } catch {
     if (my !== req) return;
     $("#status").innerHTML = navigator.onLine === false
-      ? "Movies need an internet connection. Connect to Wi-Fi or data and try again."
+      ? "Cartoons need an internet connection. Connect to Wi-Fi or data and try again."
       : 'The movie list couldn\'t load right now. <a href="#" id="retry">Try again</a>';
     $("#retry")?.addEventListener("click", e => { e.preventDefault(); load(); });
   } finally { if (my === req) loading = false; }
@@ -221,13 +217,13 @@ async function loadVideo(id, my) {
     const res = await fetch("https://archive.org/metadata/" + encodeURIComponent(id)); if (!res.ok) throw new Error(res.status);
     const meta = await res.json(); if (my !== playReq) return;
     const parts = pickParts(meta.files);
-    if (!parts.length) { showMsg("Sorry, this movie can't play on this page. Pick another one."); return; }
+    if (!parts.length) { showMsg("Sorry, this cartoon can't play on this page. Pick another one."); return; }
     const src = name => "https://archive.org/download/" + encodeURIComponent(id) + "/" + name.split("/").map(encodeURIComponent).join("/");
     const play = i => {
       const v = document.createElement("video");
       v.controls = true; v.playsInline = true; v.preload = "metadata"; v.src = src(parts[i]);
       v.poster = "https://archive.org/services/img/" + encodeURIComponent(id);
-      v.onerror = () => { if (my === playReq) showMsg("This movie couldn't play. Check your connection or pick another one."); };
+      v.onerror = () => { if (my === playReq) showMsg("This cartoon couldn't play. Check your connection or pick another one."); };
       if (i < parts.length - 1) v.onended = () => { play(i + 1); };
       $("#screen").replaceChildren(v);
       [...$("#parts").children].forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
@@ -237,7 +233,7 @@ async function loadVideo(id, my) {
     $("#parts").hidden = parts.length < 2;
     play(0);
   } catch {
-    if (my === playReq) showMsg(navigator.onLine === false ? "Movies need an internet connection." : "The movie couldn't load right now. Close it and try again.");
+    if (my === playReq) showMsg(navigator.onLine === false ? "Cartoons need an internet connection." : "The cartoon couldn't load right now. Close it and try again.");
   }
 }
 function closeMovie(fromHistory) {
