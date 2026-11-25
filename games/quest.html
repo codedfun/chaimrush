@@ -29,6 +29,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .pill.lives{color:var(--coral);letter-spacing:1px}
 .hbtn{pointer-events:auto;width:38px;height:38px;border-radius:12px;border:0;background:rgb(10 8 30/.55);display:grid;place-items:center}
 .hbtn svg{width:18px;height:18px}
+.reserve{width:44px;height:44px;border:2px dashed rgb(255 246 234/.35);background:rgb(10 8 30/.55)}
+.reserve.full{border:2px solid var(--gold);box-shadow:0 0 12px rgb(255 201 60/.5)}
+.reserve svg{width:26px;height:26px}
 .pad{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));display:flex;gap:12px}
 .pad.l{left:max(16px,env(safe-area-inset-left,0px))} .pad.r{right:max(16px,env(safe-area-inset-right,0px))}
 .pad button{border:0;border-radius:50%;width:74px;height:74px;background:rgb(255 255 255/.14);border:2px solid rgb(255 255 255/.25);display:grid;place-items:center;touch-action:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
@@ -83,7 +86,7 @@ label.sbtn{display:block}
 <canvas id="cv" aria-label="Chaim Quest game"></canvas>
 
 <div class="hud" id="hud" hidden>
-  <div class="grp"><span class="pill" id="lvlPill">Level 1</span><span class="pill"><i></i><span id="coins">0</span></span></div>
+  <div class="grp"><span class="pill" id="lvlPill">Level 1</span><span class="pill"><i></i><span id="coins">0</span></span><button class="hbtn reserve" id="reserveBtn" aria-label="Saved power-up: empty"></button></div>
   <div class="grp"><span class="pill lives" id="lives" aria-label="Lives">♥♥♥</span>
     <button class="hbtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" fill="#fff6ea"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button></div>
 </div>
@@ -110,7 +113,7 @@ label.sbtn{display:block}
       </div>
     </div>
     <div class="levels" id="levels"></div>
-    <div class="how"><div>◀ ▶ to run</div><div>Jump button, hold to go higher. Tap again in the air to double jump</div><div>Hit crates from below for power-ups</div><div>Reach the flag halfway: lose a life after it and you start there</div></div>
+    <div class="how"><div>◀ ▶ to run</div><div>Jump button, hold to go higher. Tap again in the air to double jump</div><div>Hit crates from below for power-ups</div><div>Reach the flag halfway: lose a life after it and you start there</div><div>Got a power-up you don't need? It's saved in the box at the top. Tap the box to use it</div></div>
     <button class="big" id="playBtn">Play</button>
   </div>
 </div>
@@ -323,6 +326,36 @@ const LEVELS = [
     a.ground(184, 220); a.arc(180, 4, 9, 2); a.block(188, 8, "B"); a.block(189, 8, "P"); a.block(190, 8, "L"); a.roller(196);
     a.stairsUp(200, 5); a.tower(205, 5); a.tower(206, 5); a.coins(205, 2, 6); a.door(212);
   }) },
+  { name: "Sunset Steps", build: () => makeLevel(170, a => {
+    a.ground(0, 40); a.coins(5, 5, 9); a.block(10, 8, "B"); a.block(11, 8, "P"); a.block(12, 8, "B"); a.slime(22);
+    a.stairsUp(28, 3); a.row(31, 36, 9); a.coins(31, 5, 8); a.stairsDown(36, 3);
+    a.ground(43, 70); a.arc(39, 5, 9, 2); a.slime(50); a.slime(56); a.block(60, 8, "P"); a.block(61, 8, "B"); a.spikes(65, 67);
+    a.ground(73, 100); a.arc(69, 5, 9, 2); a.coins(78, 6, 9); a.roller(85); a.tower(92, 2); a.tower(93, 2);
+    a.mover(102, 10, 3, 4, 1.6); a.coins(102, 7, 8);
+    a.ground(111, 140); a.slime(118); a.stairsUp(124, 4); a.stairsDown(128, 4); a.coins(124, 8, 7); a.slime(134);
+    a.ground(143, 170); a.arc(139, 5, 9, 2); a.block(148, 8, "L"); a.door(160);
+  }) },
+  { name: "Cloud Bridges", build: () => makeLevel(190, a => {
+    a.ground(0, 20); a.coins(4, 5, 9); a.block(9, 8, "P"); a.slime(15);
+    a.spikes(20, 42, 13); a.row(22, 26, 10, "="); a.row(29, 33, 9, "="); a.row(36, 40, 10, "="); a.coins(22, 4, 9); a.coins(29, 4, 8); a.coins(36, 4, 9);
+    a.ground(42, 60); a.roller(50); a.block(54, 8, "B"); a.block(55, 8, "P");
+    a.spikes(60, 68, 13); a.mover(62, 9, 3, 0, 1.4, true); a.coins(62, 3, 5);
+    a.ground(68, 95); a.slime(74); a.row(82, 88, 8); a.coins(82, 6, 7); a.slime(91);
+    a.spikes(95, 108, 13); a.mover(97, 10, 3, 5, 1.8); a.coins(97, 8, 8);
+    a.ground(108, 130); a.roller(118); a.stairsUp(122, 3); a.stairsDown(125, 3);
+    a.spikes(130, 147, 13); a.row(132, 135, 10, "="); a.row(137, 140, 8, "="); a.row(142, 145, 10, "="); a.coins(137, 3, 7);
+    a.ground(147, 190); a.slime(155); a.slime(160); a.block(165, 8, "B"); a.block(166, 8, "L"); a.roller(172); a.door(182);
+  }) },
+  { name: "Starlight Finale", build: () => makeLevel(210, a => {
+    a.ground(0, 22); a.coins(4, 4, 9); a.block(8, 8, "B"); a.block(9, 8, "P"); a.block(10, 8, "B"); a.slime(16);
+    a.ground(25, 30); a.ground(33, 38); a.ground(41, 46); a.arc(21, 5, 9, 2); a.arc(29, 5, 9, 2); a.arc(37, 5, 9, 2); a.slime(43);
+    a.ground(49, 75, 11); a.slime(55, 10); a.roller(62, 10); a.spikes(67, 69, 10); a.coins(64, 6, 8);
+    a.spikes(75, 97, 13); a.mover(77, 10, 2, 6, 2); a.mover(87, 9, 2, 6, 2, false, true); a.row(85, 87, 7, "="); a.coins(78, 16, 7);
+    a.ground(97, 120); a.slime(102); a.slime(106); a.stairsUp(110, 4); a.tower(114, 4); a.stairsDown(115, 4);
+    a.ground(124, 150, 10); a.arc(120, 4, 8, 2); a.roller(132, 9); a.block(138, 6, "P"); a.slime(144, 9);
+    a.ground(154, 180); a.slime(160); a.slime(164); a.spikes(168, 170); a.roller(175);
+    a.ground(183, 210); a.arc(179, 5, 9, 2); a.block(188, 8, "B"); a.block(189, 8, "L"); a.stairsUp(194, 3); a.door(202);
+  }) },
 ];
 
 /* ================= state ================= */
@@ -370,6 +403,28 @@ function loadLevel(i, carry) {
   movers = level.movers.map(m => ({ ...m, dx: 0, dy: 0 }));
   pops = []; camX = 0; levelCoins = 0; levelTime = 0; deadT = 0;
   $("#lvlPill").textContent = `Level ${i + 1}`; hud();
+}
+const RES_ICON = {
+  gem: '<svg viewBox="0 0 24 24"><path d="M12 2l8 7-8 13L4 9z" fill="#2ec4b6" stroke="#fff6ea" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 9h16M12 2l-3 7 3 13 3-13z" fill="none" stroke="#fff6ea" stroke-width="1" opacity=".7"/></svg>',
+  spark: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#ff8a3a" stroke="#fff6ea" stroke-width="1.5"/><path d="M13 5l-5 8h4l-1 6 5-8h-4z" fill="#fff6ea"/></svg>',
+};
+let reserve = (() => { const r = store.get("quest:reserve"); return r === "gem" || r === "spark" ? r : null; })();
+function syncReserve() {
+  const b = $("#reserveBtn"); if (!b) return;
+  b.innerHTML = reserve ? RES_ICON[reserve] : ""; b.classList.toggle("full", !!reserve);
+  b.setAttribute("aria-label", reserve ? `Saved power-up: ${reserve === "gem" ? "Power Gem" : "Spark Orb"}. Tap to use it` : "Saved power-up: empty");
+  store.set("quest:reserve", reserve || "");
+}
+// a power-up you don't need right now goes in the box (a Spark Orb is worth more than a Power Gem)
+function saveForLater(type) {
+  if (reserve === "spark" && type === "gem") { toast("You already have a Spark Orb saved"); return; }
+  reserve = type; syncReserve(); sfx.coin(); toast(`${type === "gem" ? "Power Gem" : "Spark Orb"} saved! Tap the box at the top to use it later`);
+}
+function useReserve() {
+  if (!reserve || mode !== "play" || !P) return;
+  if (reserve === "gem") { if (P.big) { toast("You're already big. Keep it for later"); return; } setBig(true); P.y -= 0.01; toast("Power Gem! You grew"); }
+  else { if (P.spark) { toast("You already have sparks. Keep it for later"); return; } if (!P.big) setBig(true); P.spark = true; syncFire(); toast("Spark Orb! Tap the bolt button to throw sparks"); }
+  reserve = null; syncReserve(); sfx.grow();
 }
 function hud() { $("#coins").textContent = coinsTotal; $("#lives").textContent = "♥".repeat(Math.max(0, lives)); }
 
@@ -521,8 +576,8 @@ function update(dt) {
     }
     if (!it.gone && it.emerge <= 0 && Math.abs(it.x - P.x) < 0.9 && it.y > P.y - P.h - 0.6 && it.y - it.h < P.y + 0.2) {
       it.gone = true;
-      if (it.type === "gem") { if (!P.big) { setBig(true); P.y -= 0.01; } sfx.grow(); toast("Power Gem! You grew"); addCoin(0); }
-      else if (it.type === "spark") { if (!P.big) setBig(true); P.spark = true; syncFire(); sfx.grow(); toast("Spark Orb! Tap the bolt button to throw sparks"); }
+      if (it.type === "gem") { if (!P.big) { setBig(true); P.y -= 0.01; sfx.grow(); toast("Power Gem! You grew"); } else saveForLater("gem"); addCoin(0); }
+      else if (it.type === "spark") { if (!P.spark) { if (!P.big) setBig(true); P.spark = true; syncFire(); sfx.grow(); toast("Spark Orb! Tap the bolt button to throw sparks"); } else saveForLater("spark"); }
       else { lives++; hud(); sfx.life(); toast("Extra life!"); }
     }
   }
@@ -806,10 +861,13 @@ function bindHold(id, on, off) {
 bindHold("#btnL", () => keys.left = true, () => keys.left = false);
 bindHold("#btnR", () => keys.right = true, () => keys.right = false);
 bindHold("#btnF", shoot, () => {});
+$("#reserveBtn").addEventListener("click", e => { e.stopPropagation(); useReserve(); });
+syncReserve();
 bindHold("#btnJ", () => { jumpPressedAt = performance.now(); jumpHeld = true; }, () => jumpHeld = false);
 addEventListener("keydown", e => {
   if (["ArrowLeft", "a"].includes(e.key)) keys.left = true;
   if (["ArrowRight", "d"].includes(e.key)) keys.right = true;
+  if (e.key === "r" && !e.repeat) useReserve();
   if ([" ", "ArrowUp", "w"].includes(e.key)) { e.preventDefault(); if (!e.repeat) jumpPressedAt = performance.now(); jumpHeld = true; }
   if (e.key === "Escape" && mode === "play") $("#pauseBtn").click();
   if ((e.key === "f" || e.key === "x") && !e.repeat) shoot();
