@@ -69,7 +69,7 @@ h1 span{color:var(--gold)}
 .card{background:var(--panel);border-radius:22px;padding:22px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;box-shadow:0 18px 40px rgb(0 0 0/.45)}
 .card h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0}
 .card p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.45}
-.code{font:inherit;font-family:var(--display);font-size:30px;letter-spacing:.4em;text-align:center;width:200px;padding:10px 0 10px .4em;border-radius:14px;border:2px solid var(--panel2);background:var(--night);color:var(--ink);outline:none}
+.code{font:inherit;font-family:var(--display);font-size:20px;letter-spacing:.15em;text-align:center;width:100%;padding:12px 0 12px .15em;border-radius:14px;border:2px solid var(--panel2);background:var(--night);color:var(--ink);outline:none}
 .code:focus{border-color:var(--gold)}
 .err{color:var(--coral);font-weight:700;font-size:14px;min-height:1.2em}
 .row{display:flex;gap:10px;width:100%}
@@ -114,7 +114,7 @@ h1 span{color:var(--gold)}
   <form class="card" id="form">
     <h2 id="sheetTitle">Prove you're a Chaim</h2>
     <p>Only real Chaims can play. Enter the Chaim code to start.</p>
-    <input class="code" id="code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Chaim code">
+    <input class="code" id="code" type="password" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Chaim code">
     <div class="err" id="err" aria-live="polite"></div>
     <div class="row"><button type="button" class="cancel" id="cancel">Cancel</button><button type="submit" class="go">Start playing</button></div>
   </form>
@@ -136,7 +136,7 @@ function dropOne() {
 }
 const demo = matchMedia("(prefers-reduced-motion: reduce)").matches ? (() => { for (let i = 0; i < 10; i++) dropOne(); return 0; })() : setInterval(dropOne, 650);
 
-const KEY = [54, 55, 54, 55]; // the Chaim code
+const KEY = [105, 114, 111, 110, 109, 97, 110, 115, 117, 99, 107, 115]; // the Chaim code
 const open = () => { $("#sheet").hidden = false; $("#err").textContent = ""; $("#code").value = ""; setTimeout(() => $("#code").focus(), 50); };
 const close = () => { $("#sheet").hidden = true; };
 $("#startBtn").onclick = open;
@@ -145,7 +145,7 @@ $("#sheet").addEventListener("click", e => { if (e.target === $("#sheet")) close
 addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 $("#form").addEventListener("submit", e => {
   e.preventDefault();
-  const v = $("#code").value;
+  const v = $("#code").value.trim().toLowerCase();
   if (v.length === KEY.length && [...v].every((ch, i) => ch.charCodeAt(0) === KEY[i])) {
     try { sessionStorage.setItem("c4:ok", "1"); } catch {}
     location.replace("movies.html");
