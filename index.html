@@ -1159,7 +1159,7 @@ function reset(forPlay) {
   Object.assign(B, { state: "held", cool: 0 }); hudCool = -1;
   nextRow = world.dist + 34; laneBusy = [0, 0, 0]; overTimer = 0;
   nextBridge = world.dist + 230 + Math.random() * 120;
-  nextConvoy = world.dist + 380 + Math.random() * 150;
+  nextConvoy = world.dist + 600 + Math.random() * 300;
   hudBoards(); hudThrow(); hudPowers();
 }
 function spawnRow(wz) {
@@ -1173,7 +1173,7 @@ function spawnRow(wz) {
     if (r < (easy ? 0.13 : 0.22) && blocked < (Math.random() < 0.25 ? 2 : 1)) {
       const len = 9 + Math.random() * 9, c = Math.floor(Math.random() * 3);
       const ramp = Math.random() < 0.45 && laneBusy[li] < wz - RAMP_LEN - 1;
-      const v = !easy && Math.random() < 0.3 ? world.speed * (0.25 + Math.random() * 0.2) : 0;
+      const v = !easy && Math.random() < 0.08 ? world.speed * (0.25 + Math.random() * 0.2) : 0;
       if (ramp) addObstacle({ t: "ramp", lane, wz: wz - RAMP_LEN, len: RAMP_LEN, v, mesh: makeRamp() });
       const tr = { t: "block", lane, wz, len, c, v, mesh: makeTrain(c, len) }; addObstacle(tr); if (v) markMoving(tr);
       laneBusy[li] = wz + len + (v ? rollDistance(wz, len, v) : 0); blocked++; used.add(lane);
@@ -1213,7 +1213,7 @@ function spawnConvoy(wz) {
   lanes.forEach((lane, k) => {
     let z = wz + RAMP_LEN + (k ? 5 : 0);
     if (k === 0) { const r = { t: "ramp", lane, wz, len: RAMP_LEN, v, mesh: makeRamp() }; addObstacle(r); }
-    for (let n = 0; n < 4; n++) {
+    for (let n = 0; n < 3; n++) {
       const o = { t: "block", lane, wz: z, len: CAR, c: (c + n + k) % 3, v, mesh: makeTrain((c + n + k) % 3, CAR) }; addObstacle(o); markMoving(o);
       for (let i = 0; i < 5; i++) addCoin(lane, z + 1 + i * 1.7, TOP + 0.9, o);
       z += CAR + GAP;
@@ -1309,7 +1309,7 @@ function update(dt) {
   for (const c of coins) if (c.ride && !c.pull) c.wz += c.ride.v * dt;
   if (playing) while (nextRow < world.dist + 170) {
     if (nextRow >= nextBridge && player.jet <= 0) { nextRow = spawnBridge(nextRow); nextBridge = nextRow + 320 + Math.random() * 260; continue; }
-    if (nextRow >= nextConvoy && player.jet <= 0 && nextRow - startDist > 200) { nextRow = spawnConvoy(Math.max(nextRow, ...laneBusy.map(b => b + 3))); nextConvoy = nextRow + 260 + Math.random() * 200; continue; }
+    if (nextRow >= nextConvoy && player.jet <= 0 && nextRow - startDist > 200) { nextRow = spawnConvoy(Math.max(nextRow, ...laneBusy.map(b => b + 3))); nextConvoy = nextRow + 1300 + Math.random() * 500; continue; }
     spawnRow(nextRow); nextRow += 15 + Math.random() * 8 + world.speed * 0.28;
   }
 
