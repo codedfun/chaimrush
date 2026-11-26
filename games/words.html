@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chaim Rush</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chaim Rush">
+<meta name="theme-color" content="#16133a">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../icon-192.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="stylesheet" href="../fonts/fonts.css">
+<style>
+/* Layout: a header row (back, title, stats), the 4/5/6 letter switch, the guess grid in the middle, and the on-screen keyboard at the bottom. */
+:root{
+  color-scheme:dark;
+  --night:#16133a; --panel:#221d52; --panel2:#2d2768; --ink:#fff6ea; --muted:#b8b1e8;
+  --coral:#ff6a55; --gold:#ffc93c; --teal:#2ec4b6;
+  --hit:#2ec4b6; --near:#ffc93c; --miss:#3a3466;
+  --display:"Bungee",Impact,"Arial Black",sans-serif;
+  --body:"Rubik",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--night)}
+body{margin:0;min-height:100vh;min-height:100dvh;background:radial-gradient(120% 60% at 50% 0%,#3b2a6e 0%,var(--night) 60%);color:var(--ink);font-family:var(--body);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.app{max-width:520px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+.top{display:flex;align-items:center;gap:8px}
+.back,.icon{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--panel2);border:0;border-radius:999px;padding:8px 13px 8px 9px;font-weight:500;font-size:14px;color:var(--ink)}
+.icon{padding:8px;border-radius:12px}
+.back svg,.icon svg{width:18px;height:18px}
+h1{font-family:var(--display);font-weight:400;font-size:22px;margin:0 auto;letter-spacing:.02em}
+h1 span{color:var(--teal)}
+.lens{display:flex;gap:8px;justify-content:center;margin:10px 0 4px}
+.lens button{border:0;border-radius:999px;background:var(--panel2);padding:7px 16px;font-weight:700;font-size:14px;color:var(--muted)}
+.lens button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
+.boardWrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:6px 0}
+.board{display:grid;gap:6px}
+.row{display:grid;gap:6px}
+.row.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.tile{display:grid;place-items:center;border:2px solid var(--panel2);border-radius:10px;font-family:var(--display);text-transform:uppercase;background:rgb(10 8 30/.35);transition:border-color .1s}
+.tile.filled{border-color:#7a73b8;animation:pop .1s}
+@keyframes pop{50%{transform:scale(1.08)}}
+.tile.hit,.tile.near,.tile.miss{border-color:transparent;animation:flip .45s ease both}
+.tile.hit{background:var(--hit);color:#06231f}
+.tile.near{background:var(--near);color:#3a2a08}
+.tile.miss{background:var(--miss);color:var(--ink)}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+.row.win .tile{animation:hop .5s ease both}
+@keyframes hop{40%{transform:translateY(-12px)}}
+.msgline{min-height:44px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;text-align:center}
+.toast{background:var(--ink);color:var(--night);font-weight:700;border-radius:10px;padding:8px 14px;font-size:15px}
+.next{border:0;border-radius:14px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:17px;padding:10px 18px;box-shadow:0 4px 0 #b8402f}
+.next:active{transform:translateY(3px);box-shadow:0 1px 0 #b8402f}
+.kb{display:flex;flex-direction:column;gap:7px;padding-top:4px}
+.kr{display:flex;gap:5px;justify-content:center}
+.key{flex:1;max-width:44px;height:54px;border:0;border-radius:8px;background:#5b5494;font-weight:700;font-size:17px;text-transform:uppercase;display:grid;place-items:center;padding:0}
+.key.wide{flex:1.6;max-width:72px;font-size:12.5px}
+.key svg{width:22px;height:22px}
+.key.hit{background:var(--hit);color:#06231f} .key.near{background:var(--near);color:#3a2a08} .key.miss{background:#2a2550;color:#7f78b0}
+.sheet{position:fixed;inset:0;background:rgb(14 11 38/.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+.card{background:var(--panel);border-radius:20px;padding:20px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;box-shadow:0 18px 40px rgb(0 0 0/.45)}
+.card h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.card p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.45}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.stats b{display:block;font-family:var(--display);font-weight:400;font-size:24px}
+.stats span{font-size:11.5px;color:var(--muted)}
+.dist{display:flex;flex-direction:column;gap:4px}
+.dist div{display:flex;align-items:center;gap:6px;font-size:13px}
+.dist i{display:block;background:var(--panel2);border-radius:4px;padding:2px 6px;font-style:normal;font-weight:700;text-align:right;min-width:22px}
+.dist i.now{background:var(--teal);color:#06231f}
+.close{border:0;border-radius:12px;background:var(--panel2);padding:11px;font-weight:700}
+.ex{display:flex;gap:4px}
+.ex .tile{width:34px;height:34px;font-size:16px;animation:none}
+@media (prefers-reduced-motion:reduce){.tile,.row,.next{animation:none!important;transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <a class="back" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>Games</a>
+    <h1>Chaim<span>Words</span></h1>
+    <button class="icon" id="helpBtn" aria-label="How to play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></button>
+    <button class="icon" id="statsBtn" aria-label="Your stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 20V12M12 20V5M19 20v-9"/></svg></button>
+  </div>
+  <div class="lens" role="group" aria-label="Word length">
+    <button data-n="4" aria-pressed="false">4 letters</button><button data-n="5" aria-pressed="true">5 letters</button><button data-n="6" aria-pressed="false">6 letters</button>
+  </div>
+  <div class="boardWrap"><div class="board" id="board" aria-label="Guesses"></div></div>
+  <div class="msgline" aria-live="polite"><span class="toast" id="toast" hidden></span><button class="next" id="nextBtn" hidden>Next word</button></div>
+  <div class="kb" id="kb" aria-label="Keyboard"></div>
+</div>
+
+<div class="sheet" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="card">
+    <h2 id="helpTitle">How to play</h2>
+    <p>Guess the hidden word. Pick 4, 5 or 6 letters at the top. Every guess has to be a real word. After each guess the tiles change color:</p>
+    <div class="ex"><span class="tile hit">c</span><span class="tile miss">l</span><span class="tile miss">o</span><span class="tile miss">u</span><span class="tile miss">d</span></div>
+    <p><b style="color:var(--teal)">Teal</b>: right letter in the right spot.</p>
+    <div class="ex"><span class="tile miss">p</span><span class="tile near">l</span><span class="tile miss">a</span><span class="tile miss">n</span><span class="tile miss">t</span></div>
+    <p><b style="color:var(--gold)">Gold</b>: the letter is in the word, but in a different spot.</p>
+    <p>Dark: the letter isn't in the word. There's no daily limit: tap <b>Next word</b> to keep playing.</p>
+    <button class="close" id="helpClose">Got it</button>
+  </div>
+</div>
+
+<div class="sheet" id="statsSheet" hidden role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+  <div class="card">
+    <h2 id="statsTitle">Stats</h2>
+    <div class="stats" id="statsNums"></div>
+    <p id="statsLen"></p>
+    <div class="dist" id="dist"></div>
+    <button class="close" id="statsClose">Close</button>
+  </div>
+</div>
+
+<script src="words-list.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+const LISTS = {};
+for (const n of [4, 5, 6]) { const d = window.CHAIM_WORDS[n]; const answers = d.a.split(" "); LISTS[n] = { answers, valid: new Set([...answers, ...d.g.split(" ")]) }; }
+const ROWS = { 4: 6, 5: 6, 6: 7 };
+
+/* ---------- state per word length, kept on this phone ---------- */
+let n = +(store.get("words:len") || 5); if (![4, 5, 6].includes(n)) n = 5;
+let game, typing = "", busy = false;
+const load = len => { try { const g = JSON.parse(store.get("words:game" + len) || "null"); if (g && g.answer && LISTS[len].answers.includes(g.answer)) return g; } catch {} return null; };
+const saveGame = () => store.set("words:game" + n, JSON.stringify(game));
+const stats = len => { try { return JSON.parse(store.get("words:stats" + len) || "null") || { played: 0, wins: 0, streak: 0, best: 0, dist: [] }; } catch { return { played: 0, wins: 0, streak: 0, best: 0, dist: [] }; } };
+function pickAnswer(len) {
+  let recent = []; try { recent = JSON.parse(store.get("words:recent" + len) || "[]"); } catch {}
+  const pool = LISTS[len].answers, seen = new Set(recent);
+  let w; for (let i = 0; i < 50; i++) { w = pool[Math.floor(Math.random() * pool.length)]; if (!seen.has(w)) break; }
+  recent.push(w); store.set("words:recent" + len, JSON.stringify(recent.slice(-Math.min(300, Math.floor(pool.length / 2)))));
+  return w;
+}
+function newGame() { game = { answer: pickAnswer(n), guesses: [], done: false, won: false }; typing = ""; saveGame(); build(); }
+
+/* ---------- scoring a guess (handles repeated letters properly) ---------- */
+function score(guess, answer) {
+  const res = Array(guess.length).fill("miss"), left = {};
+  for (let i = 0; i < answer.length; i++) if (guess[i] === answer[i]) res[i] = "hit"; else left[answer[i]] = (left[answer[i]] || 0) + 1;
+  for (let i = 0; i < guess.length; i++) if (res[i] !== "hit" && left[guess[i]] > 0) { res[i] = "near"; left[guess[i]]--; }
+  return res;
+}
+
+/* ---------- drawing ---------- */
+function build() {
+  const board = $("#board"), rows = ROWS[n];
+  const size = Math.min(62, Math.floor((Math.min(innerWidth, 520) - 40) / n) - 6, Math.floor((innerHeight - 380) / rows) - 6);
+  board.innerHTML = ""; board.style.setProperty("--s", size + "px");
+  for (let r = 0; r < rows; r++) {
+    const row = document.createElement("div"); row.className = "row"; row.style.gridTemplateColumns = `repeat(${n}, ${size}px)`;
+    for (let c = 0; c < n; c++) { const t = document.createElement("div"); t.className = "tile"; t.style.height = size + "px"; t.style.fontSize = Math.round(size * 0.48) + "px"; row.appendChild(t); }
+    board.appendChild(row);
+  }
+  game.guesses.forEach((g, r) => paintRow(r, g, false));
+  paintTyping(); paintKeys();
+  [...document.querySelectorAll(".lens button")].forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.n === n)));
+  $("#nextBtn").hidden = !game.done; $("#toast").hidden = true;
+  if (game.done) showEnd(false);
+}
+function paintRow(r, word, animate) {
+  const row = $("#board").children[r], res = score(word, game.answer);
+  [...row.children].forEach((t, i) => {
+    t.textContent = word[i]; t.className = "tile";
+    const apply = () => { t.className = "tile " + res[i]; };
+    if (animate) { t.classList.add("filled"); setTimeout(apply, i * 220); t.style.animationDelay = "0ms"; } else apply();
+  });
+  row.setAttribute("aria-label", word.toUpperCase() + ": " + res.map((s, i) => `${word[i].toUpperCase()} ${s === "hit" ? "right spot" : s === "near" ? "wrong spot" : "not in word"}`).join(", "));
+}
+function paintTyping() {
+  const r = game.guesses.length; if (r >= ROWS[n] || game.done) return;
+  const row = $("#board").children[r];
+  [...row.children].forEach((t, i) => { t.textContent = typing[i] || ""; t.className = "tile" + (typing[i] ? " filled" : ""); });
+}
+const RANK = { miss: 1, near: 2, hit: 3 };
+function paintKeys() {
+  const best = {};
+  for (const g of game.guesses) score(g, game.answer).forEach((s, i) => { if (!best[g[i]] || RANK[s] > RANK[best[g[i]]]) best[g[i]] = s; });
+  document.querySelectorAll(".key[data-k]").forEach(k => { const l = k.dataset.k; k.className = "key" + (k.classList.contains("wide") ? " wide" : "") + (best[l] ? " " + best[l] : ""); });
+}
+let toastT;
+function toast(text, ms = 1600) { const t = $("#toast"); t.textContent = text; t.hidden = false; clearTimeout(toastT); if (ms) toastT = setTimeout(() => t.hidden = true, ms); }
+
+/* ---------- typing ---------- */
+function key(k) {
+  if (busy || game.done) return;
+  if (k === "enter") return submit();
+  if (k === "back") { typing = typing.slice(0, -1); paintTyping(); return; }
+  if (/^[a-z]$/.test(k) && typing.length < n) { typing += k; paintTyping(); }
+}
+function shakeRow(msg) { const row = $("#board").children[game.guesses.length]; row.classList.remove("shake"); void row.offsetWidth; row.classList.add("shake"); toast(msg); }
+function submit() {
+  if (typing.length < n) return shakeRow("Not enough letters");
+  if (!LISTS[n].valid.has(typing)) return shakeRow("Not in the word list");
+  const r = game.guesses.length, word = typing;
+  game.guesses.push(word); typing = ""; busy = true;
+  paintRow(r, word, true);
+  const won = word === game.answer, lost = !won && game.guesses.length >= ROWS[n];
+  if (won || lost) { game.done = true; game.won = won; record(won); }
+  saveGame();
+  setTimeout(() => { busy = false; paintKeys(); if (won || lost) showEnd(true); }, n * 220 + 250);
+}
+const PRAISE = ["Genius!", "Brilliant!", "Great!", "Nice!", "Good!", "Phew!", "Just made it!"];
+function showEnd(fresh) {
+  if (game.won) { toast(PRAISE[Math.min(game.guesses.length - 1, PRAISE.length - 1)], 0); if (fresh) $("#board").children[game.guesses.length - 1].classList.add("win"); }
+  else toast("The word was " + game.answer.toUpperCase(), 0);
+  $("#nextBtn").hidden = false;
+  if (fresh) setTimeout(() => $("#nextBtn").focus(), 50);
+}
+function record(won) {
+  const s = stats(n); s.played++;
+  if (won) { s.wins++; s.streak++; s.best = Math.max(s.best, s.streak); s.dist[game.guesses.length - 1] = (s.dist[game.guesses.length - 1] || 0) + 1; } else s.streak = 0;
+  store.set("words:stats" + n, JSON.stringify(s));
+}
+
+/* ---------- keyboard ---------- */
+const ROWS_KB = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+ROWS_KB.forEach((r, i) => {
+  const row = document.createElement("div"); row.className = "kr";
+  if (i === 2) { const e = document.createElement("button"); e.className = "key wide"; e.textContent = "Enter"; e.onclick = () => key("enter"); row.appendChild(e); }
+  for (const l of r) { const b = document.createElement("button"); b.className = "key"; b.dataset.k = l; b.textContent = l; b.setAttribute("aria-label", l.toUpperCase()); b.onclick = () => key(l); row.appendChild(b); }
+  if (i === 2) { const d = document.createElement("button"); d.className = "key wide"; d.setAttribute("aria-label", "Delete"); d.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12zM18 9l-6 6M12 9l6 6"/></svg>'; d.onclick = () => key("back"); row.appendChild(d); }
+  $("#kb").appendChild(row);
+});
+addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || !$("#help").hidden || !$("#statsSheet").hidden) { if (e.key === "Escape") { $("#help").hidden = true; $("#statsSheet").hidden = true; } return; }
+  if (e.key === "Enter") { e.preventDefault(); if (game.done) newGame(); else key("enter"); }
+  else if (e.key === "Backspace") key("back");
+  else if (/^[a-zA-Z]$/.test(e.key)) key(e.key.toLowerCase());
+});
+
+/* ---------- buttons ---------- */
+document.querySelectorAll(".lens button").forEach(b => b.onclick = () => {
+  if (busy) return; n = +b.dataset.n; store.set("words:len", n); typing = "";
+  game = load(n); if (!game) newGame(); else build();
+});
+$("#nextBtn").onclick = () => newGame();
+$("#helpBtn").onclick = () => $("#help").hidden = false;
+$("#helpClose").onclick = () => { $("#help").hidden = true; store.set("words:seenHelp", "1"); };
+$("#statsBtn").onclick = () => {
+  const s = stats(n), last = game.done && game.won ? game.guesses.length - 1 : -1;
+  $("#statsNums").innerHTML = [[s.played, "Played"], [s.played ? Math.round(s.wins / s.played * 100) : 0, "Win %"], [s.streak, "Streak"], [s.best, "Best streak"]].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+  $("#statsLen").textContent = `${n}-letter words: how many guesses your wins took`;
+  const max = Math.max(1, ...Array.from({ length: ROWS[n] }, (_, i) => s.dist[i] || 0));
+  $("#dist").innerHTML = Array.from({ length: ROWS[n] }, (_, i) => { const v = s.dist[i] || 0; return `<div>${i + 1}<i class="${i === last ? "now" : ""}" style="width:${Math.max(8, v / max * 100)}%">${v}</i></div>`; }).join("");
+  $("#statsSheet").hidden = false;
+};
+$("#statsClose").onclick = () => $("#statsSheet").hidden = true;
+for (const id of ["#help", "#statsSheet"]) $(id).addEventListener("click", e => { if (e.target === $(id)) $(id).hidden = true; });
+addEventListener("resize", () => { clearTimeout(window.__rz); window.__rz = setTimeout(() => { if (!busy) build(); }, 150); });
+
+game = load(n); if (!game) newGame(); else build();
+if (store.get("words:seenHelp") !== "1") $("#help").hidden = false;
+})();
+</script>
+<script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("../sw.js", { scope: "../" }).catch(() => {}));</script>
+</body>
+</html>
