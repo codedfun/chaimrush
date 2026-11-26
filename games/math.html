@@ -96,7 +96,7 @@ const LEVELS = {
   easy:   { ops: ["+", "+", "-"], max: 20, blanks: [3, 4] },
   medium: { ops: ["+", "-", "*"], max: 50, blanks: [4, 5] },
   hard:   { ops: ["+", "-", "*", "/"], max: 99, blanks: [5, 6] },
-  expert: { ops: ["+", "-", "*", "/"], max: 99, blanks: [6, 7], unique: true },
+  expert: { ops: ["+", "-", "*", "/"], max: 99, blanks: [5, 5], varied: true },
 };
 const calc = (x, op, y) => op === "+" ? x + y : op === "-" ? x - y : op === "*" ? x * y : (y !== 0 && x % y === 0 ? x / y : NaN);
 const okNum = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
@@ -106,20 +106,30 @@ function generate(level) {
   for (let tries = 0; tries < 200000; tries++) {
     const ops = EQS.map(() => L.ops[rnd(L.ops.length)]);
     const small = level === "easy" ? 10 : 12;
-    const pick = op => op === "*" || op === "/" ? 1 + rnd(9) : rnd(small) + 1;
+    const pick = L.varied ? (op => op === "*" || op === "/" ? 2 + rnd(11) : 3 + rnd(40)) : (op => op === "*" || op === "/" ? 1 + rnd(9) : rnd(small) + 1);
     const v = Array(9).fill(null);
     v[0] = pick(ops[0]); v[1] = pick(ops[0]); v[3] = pick(ops[3]); v[4] = pick(ops[1]);
-    if (ops[3] === "/") v[0] = v[3] * (1 + rnd(9));
+    if (ops[3] === "/") v[0] = v[3] * (L.varied ? 2 + rnd(8) : 1 + rnd(9));
     if (ops[0] === "/") v[1] = [1, 2, 3, 4, 5].find(d => v[0] % d === 0 && rnd(2)) || 1;
-    if (ops[1] === "/") v[4] = 1 + rnd(4), v[3] = v[4] * (1 + rnd(9));
+    if (ops[1] === "/") { v[4] = L.varied ? 2 + rnd(7) : 1 + rnd(4); v[3] = v[4] * (L.varied ? 2 + rnd(8) : 1 + rnd(9)); }
     v[2] = calc(v[0], ops[0], v[1]); v[5] = calc(v[3], ops[1], v[4]);
     v[6] = calc(v[0], ops[3], v[3]); v[7] = calc(v[1], ops[4], v[4]);
-    const i1 = calc(v[6], ops[2], v[7]), i2 = calc(v[2], ops[5], v[5]);
-    if (!(i1 === i2)) continue; v[8] = i1;
+    if (L.varied) {
+      // try every pair of signs for the bottom row and right column, keep a random one that lines up
+      if (![v[2], v[5], v[6], v[7]].every(x => okNum(x, L.max))) continue;
+      const pairs = []; for (const o2 of L.ops) for (const o5 of L.ops) { const x = calc(v[6], o2, v[7]); if (x === calc(v[2], o5, v[5]) && okNum(x, L.max)) pairs.push([o2, o5, x]); }
+      if (!pairs.length) continue;
+      const [o2, o5, x] = pairs[rnd(pairs.length)]; ops[2] = o2; ops[5] = o5; v[8] = x;
+    } else {
+      const i1 = calc(v[6], ops[2], v[7]), i2 = calc(v[2], ops[5], v[5]);
+      if (!(i1 === i2)) continue; v[8] = i1;
+    }
     if (!v.every(x => okNum(x, L.max))) continue;
     if (ops.filter(o => o === "+").length === 6 && level !== "easy") continue;
     if (level === "hard" && !ops.some(o => o === "/" || o === "*")) continue;
     if (level === "expert" && !(ops.includes("*") && ops.includes("/") && ops.includes("-"))) continue;
+    // Expert: nine different numbers, no 0s or 1s, and some big ones
+    if (L.varied && (new Set(v).size < 9 || v.some(x => x < 2) || v.filter(x => x >= 20).length < 3)) continue;
     if (v.filter(x => x === 0).length > 1) continue;
     // hide cells one at a time, keeping it solvable step by step
     const shown = Array(9).fill(true), want = L.blanks[0] + rnd(L.blanks[1] - L.blanks[0] + 1);
@@ -201,7 +211,7 @@ function save() { store.set("math:cur", JSON.stringify({ level, P, entry, done }
 
 /* ---------- drawing ---------- */
 function draw() {
-  $(".help").textContent = level === "expert" ? "Expert: just a few numbers given. Every answer is a whole number from 0 to 99, with one solution." : "Fill in the empty circles so every row (left to right) and every column (top to bottom) works out.";
+  $(".help").textContent = level === "expert" ? "Expert: tougher numbers, all different. Every answer is a whole number up to 99." : "Fill in the empty circles so every row (left to right) and every column (top to bottom) works out.";
   const g = $("#grid"); g.innerHTML = "";
   const cell = k => {
     const b = document.createElement("button"); b.type = "button";
