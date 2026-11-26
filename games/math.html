@@ -37,10 +37,10 @@ h1{font-family:var(--display);font-weight:400;font-size:22px;margin:0 auto}
 h1 span{color:var(--gold)}
 .solved{font-size:13px;color:var(--muted);text-align:right;min-width:64px}
 .solved b{display:block;font-family:var(--display);font-weight:400;font-size:18px;color:var(--ink)}
-.levels{display:flex;gap:8px;justify-content:center}
-.levels button{border:0;border-radius:999px;background:var(--panel2);padding:7px 16px;font-weight:700;font-size:14px;color:var(--muted)}
+.levels{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.levels button{border:0;border-radius:999px;background:var(--panel2);padding:7px 13px;font-weight:700;font-size:14px;color:var(--muted)}
 .levels button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
-.paper{background:var(--paper);border-radius:22px;padding:12px;box-shadow:0 12px 30px rgb(0 0 0/.35);align-self:center;width:100%;max-width:420px}
+.paper{background:var(--paper);border-radius:22px;padding:12px;box-shadow:0 12px 30px rgb(0 0 0/.35);align-self:center;width:100%;max-width:min(420px,calc(100vh - 320px));max-width:min(420px,calc(100dvh - 320px))}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;gap:2px}
 .cell{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #7a4a2e;background:#fffaf0;color:var(--paperInk);font-family:var(--display);display:grid;place-items:center;font-size:clamp(18px,6.2vw,30px);padding:0;line-height:1}
 .cell.given{cursor:default}
@@ -57,12 +57,12 @@ h1 span{color:var(--gold)}
 .next{border:0;border-radius:14px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:17px;padding:10px 18px;box-shadow:0 4px 0 #b8402f}
 .next:active{transform:translateY(3px);box-shadow:0 1px 0 #b8402f}
 .pad{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:auto}
-.pad button{height:52px;border:0;border-radius:12px;background:#5b5494;font-weight:700;font-size:21px}
+.pad button{height:48px;border:0;border-radius:12px;background:#5b5494;font-weight:700;font-size:21px}
 .pad button.wide{grid-column:span 3;font-size:15px}
 .pad button.check{background:var(--teal);color:#06231f}
 .pad button.hint{background:var(--panel2);font-size:15px}
 .pad svg{width:24px;height:24px}
-.help{font-size:13px;color:var(--muted);text-align:center;margin:0;line-height:1.4}
+.help{font-size:12.5px;color:var(--muted);text-align:center;margin:0;line-height:1.4}
 @media (prefers-reduced-motion:reduce){.next:active{transform:none}}
 </style>
 </head>
@@ -74,7 +74,7 @@ h1 span{color:var(--gold)}
     <div class="solved"><b id="solvedN">0</b>solved</div>
   </div>
   <div class="levels" role="group" aria-label="Difficulty">
-    <button data-l="easy" aria-pressed="true">Easy</button><button data-l="medium" aria-pressed="false">Medium</button><button data-l="hard" aria-pressed="false">Hard</button>
+    <button data-l="easy" aria-pressed="true">Easy</button><button data-l="medium" aria-pressed="false">Medium</button><button data-l="hard" aria-pressed="false">Hard</button><button data-l="expert" aria-pressed="false">Expert</button>
   </div>
   <p class="help">Fill in the empty circles so every row (left to right) and every column (top to bottom) works out.</p>
   <div class="paper"><div class="grid" id="grid" aria-label="Puzzle"></div></div>
@@ -96,6 +96,7 @@ const LEVELS = {
   easy:   { ops: ["+", "+", "-"], max: 20, blanks: [3, 4] },
   medium: { ops: ["+", "-", "*"], max: 50, blanks: [4, 5] },
   hard:   { ops: ["+", "-", "*", "/"], max: 99, blanks: [5, 6] },
+  expert: { ops: ["+", "-", "*", "/"], max: 99, blanks: [6, 7], unique: true },
 };
 const calc = (x, op, y) => op === "+" ? x + y : op === "-" ? x - y : op === "*" ? x * y : (y !== 0 && x % y === 0 ? x / y : NaN);
 const okNum = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
@@ -118,6 +119,7 @@ function generate(level) {
     if (!v.every(x => okNum(x, L.max))) continue;
     if (ops.filter(o => o === "+").length === 6 && level !== "easy") continue;
     if (level === "hard" && !ops.some(o => o === "/" || o === "*")) continue;
+    if (level === "expert" && !(ops.includes("*") && ops.includes("/") && ops.includes("-"))) continue;
     if (v.filter(x => x === 0).length > 1) continue;
     // hide cells one at a time, keeping it solvable step by step
     const shown = Array(9).fill(true), want = L.blanks[0] + rnd(L.blanks[1] - L.blanks[0] + 1);
@@ -125,7 +127,7 @@ function generate(level) {
     for (const k of [...Array(9).keys()].sort(() => Math.random() - 0.5)) {
       if (hidden >= want) break;
       shown[k] = false;
-      if (solvable(v, ops, shown)) hidden++; else shown[k] = true;
+      if (L.unique ? countSolutions(ops, v.map((x, j) => shown[j] ? x : null), L.max) === 1 : solvable(v, ops, shown)) hidden++; else shown[k] = true;
     }
     if (hidden < want) continue;
     return { v, ops, shown };
@@ -133,6 +135,40 @@ function generate(level) {
   throw new Error("no puzzle");
 }
 // fill in, over and over, any equation with exactly one unknown; solvable if everything gets filled
+// Expert: count the ways to fill the empty circles with whole numbers 0..max (stops at 2). Exactly 1 means one answer.
+function countSolutions(ops, given, max, limit = 2) {
+  const inv = (q, k, kn) => { const [x, y, z] = EQS[q], op = ops[q];
+    if (k === z) return calc(kn[x], op, kn[y]);
+    if (k === x) return op === "+" ? kn[z] - kn[y] : op === "-" ? kn[z] + kn[y] : op === "*" ? (kn[y] ? kn[z] / kn[y] : (kn[z] === 0 ? undefined : NaN)) : (kn[y] ? kn[z] * kn[y] : NaN);
+    return op === "+" ? kn[z] - kn[x] : op === "-" ? kn[x] - kn[z] : op === "*" ? (kn[x] ? kn[z] / kn[x] : (kn[z] === 0 ? undefined : NaN)) : (kn[z] ? (kn[x] % kn[z] === 0 ? kn[x] / kn[z] : NaN) : (kn[x] === 0 ? undefined : NaN));
+  };
+  function settle(kn) {
+    for (let changed = true; changed;) {
+      changed = false;
+      for (let q = 0; q < 6; q++) {
+        const [x, y, z] = EQS[q], u = [x, y, z].filter(k => kn[k] === null);
+        if (u.length === 0) { if (calc(kn[x], ops[q], kn[y]) !== kn[z]) return false; continue; }
+        if (u.length !== 1) continue;
+        const val = inv(q, u[0], kn);
+        if (val === undefined) continue;                       // anything works here (like 0 × ? = 0): decide later
+        if (!okNum(val, max)) return false;
+        if (k2check(q, u[0], val, kn) === false) return false;
+        kn[u[0]] = val; changed = true;
+      }
+    }
+    return true;
+  }
+  const k2check = (q, k, val, kn) => { const t = kn.slice(); t[k] = val; const [x, y, z] = EQS[q]; return calc(t[x], ops[q], t[y]) === t[z]; };
+  let found = 0;
+  (function go(kn) {
+    if (found >= limit || !settle(kn)) return;
+    const empty = kn.map((x, k) => x === null ? k : -1).filter(k => k >= 0);
+    if (!empty.length) { found++; return; }
+    const k = empty.sort((a, b) => EQS.filter(e => e.includes(b) && e.some(j => kn[j] !== null)).length - EQS.filter(e => e.includes(a) && e.some(j => kn[j] !== null)).length)[0];
+    for (let val = 0; val <= max && found < limit; val++) { const t = kn.slice(); t[k] = val; go(t); }
+  })(given.slice());
+  return found;
+}
 function solvable(v, ops, shown) {
   const known = v.map((x, k) => shown[k] ? x : null);
   let changed = true;
@@ -165,6 +201,7 @@ function save() { store.set("math:cur", JSON.stringify({ level, P, entry, done }
 
 /* ---------- drawing ---------- */
 function draw() {
+  $(".help").textContent = level === "expert" ? "Expert: just a few numbers given. Every answer is a whole number from 0 to 99, with one solution." : "Fill in the empty circles so every row (left to right) and every column (top to bottom) works out.";
   const g = $("#grid"); g.innerHTML = "";
   const cell = k => {
     const b = document.createElement("button"); b.type = "button";
