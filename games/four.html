@@ -194,14 +194,73 @@ function drop(c) {
   if (grid[0].every(Boolean)) { over = true; say("It's a draw"); return true; }
   turn = 3 - turn; say(); return true;
 }
+/* the computer looks several moves ahead (its moves and yours) and picks the move that leaves it best off */
+const WINDOWS = [];
+for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+  const cells = []; for (let k = 0; k < 4; k++) { const rr = r + dr * k, cc = c + dc * k; if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) break; cells.push(rr * COLS + cc); }
+  if (cells.length === 4) WINDOWS.push(cells);
+}
 function cpuMove() {
-  const cols = [3, 2, 4, 1, 5, 0, 6].filter(c => openRow(grid, c) >= 0);
-  const wins = p => cols.find(c => { const r = openRow(grid, c); grid[r][c] = p; const w = !!lineFrom(grid, r, c); grid[r][c] = 0; return w; });
-  let c = wins(2); if (c !== undefined) return c;          // win if it can
-  c = wins(1); if (c !== undefined) return c;              // block you
-  const safe = cols.filter(cc => { const r = openRow(grid, cc); if (r === 0) return true; grid[r][cc] = 2; grid[r - 1][cc] = 1; const bad = !!lineFrom(grid, r - 1, cc); grid[r - 1][cc] = 0; grid[r][cc] = 0; return !bad; });
-  const pick = safe.length ? safe : cols;
-  return Math.random() < 0.75 ? pick[0] : pick[Math.floor(Math.random() * pick.length)];
+  const b = grid.flat(), heights = Array.from({ length: COLS }, (_, c) => { let h = 0; for (let r = ROWS - 1; r >= 0; r--) if (b[r * COLS + c]) h++; return h; });
+  const ORDER = [3, 2, 4, 1, 5, 0, 6], WIN = 1e6;
+  const winsAt = (idx, p) => { const r = Math.floor(idx / COLS), c = idx % COLS;
+    for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) { let n = 1;
+      for (const s of [1, -1]) for (let k = 1; k < 4; k++) { const rr = r + dr * k * s, cc = c + dc * k * s; if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS || b[rr * COLS + cc] !== p) break; n++; }
+      if (n >= 4) return true; } return false; };
+  // score a position for the computer (2): open lines of 2 and 3 count, threats that can be played soon count more
+  const evaluate = () => {
+    let s = 0;
+    for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) { const v = b[r * COLS + c]; if (v) s += (v === 2 ? 1 : -1) * [0, 1, 2, 4, 2, 1, 0][c]; }
+    for (const w of WINDOWS) {
+      let mine = 0, theirs = 0, empty = -1; for (const i of w) { const v = b[i]; if (v === 2) mine++; else if (v === 1) theirs++; else empty = i; }
+      if (mine && theirs) continue;
+      if (mine === 3) s += 60; else if (mine === 2) s += 6;
+      if (theirs === 3) s -= 80; else if (theirs === 2) s -= 7;
+      if ((mine === 3 || theirs === 3) && empty >= 0) {                 // a threat whose square can be filled right away is worse
+        const er = Math.floor(empty / COLS), ec = empty % COLS, playable = ROWS - 1 - er === heights[ec];
+        if (playable) s += mine === 3 ? 40 : -60;
+      }
+    }
+    return s;
+  };
+  const deadline = performance.now() + 400;
+  let timeUp = false;
+  function search(depth, alpha, beta, player, ply) {
+    if (performance.now() > deadline) { timeUp = true; return 0; }
+    let movesLeft = false;
+    for (const c of ORDER) if (heights[c] < ROWS) { movesLeft = true; const idx = (ROWS - 1 - heights[c]) * COLS + c; if (winsAt(idx, player)) return player === 2 ? WIN - ply : -(WIN - ply); }
+    if (!movesLeft) return 0;
+    if (depth === 0) return evaluate();
+    let best = player === 2 ? -Infinity : Infinity;
+    for (const c of ORDER) {
+      if (heights[c] >= ROWS) continue;
+      const idx = (ROWS - 1 - heights[c]) * COLS + c; b[idx] = player; heights[c]++;
+      const v = search(depth - 1, alpha, beta, 3 - player, ply + 1);
+      heights[c]--; b[idx] = 0;
+      if (timeUp) return 0;
+      if (player === 2) { if (v > best) best = v; if (best > alpha) alpha = best; }
+      else { if (v < best) best = v; if (best < beta) beta = best; }
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+  const legal = ORDER.filter(c => heights[c] < ROWS);
+  let bestCols = [legal[0]];
+  for (let depth = 2; depth <= 10; depth++) {                    // look further ahead while there's time
+    const scores = [];
+    for (const c of legal) {
+      const idx = (ROWS - 1 - heights[c]) * COLS + c; b[idx] = 2; heights[c]++;
+      const v = winsAt(idx, 2) ? WIN : search(depth - 1, -Infinity, Infinity, 1, 1);
+      heights[c]--; b[idx] = 0;
+      if (timeUp) break;
+      scores.push([c, v]);
+    }
+    if (timeUp) break;
+    const top = Math.max(...scores.map(x => x[1]));
+    bestCols = scores.filter(x => x[1] >= top - 2).map(x => x[0]);   // near-equal moves: pick one at random for variety
+    if (top >= WIN - 50) break;
+  }
+  return bestCols[Math.floor(Math.random() * bestCols.length)];
 }
 board.addEventListener("click", e => {
   if (!board.classList.contains("play") || over || busy || (mode === "cpu" && turn === 2)) return;
@@ -210,7 +269,7 @@ board.addEventListener("click", e => {
   const c = cells.indexOf(cell) % COLS, n = moves();
   if (!drop(c)) return;
   if (mode === "online") send({ t: "move", c, n, round: net.round });
-  if (mode === "cpu" && !over) { busy = true; setTimeout(() => { busy = false; if (!over) drop(cpuMove()); }, 550); }
+  if (mode === "cpu" && !over) { busy = true; setTimeout(() => { if (!over) drop(cpuMove()); busy = false; }, 180); }   // it thinks for up to 0.4 s, so the wait feels the same
 });
 const moves = () => grid.flat().filter(Boolean).length;
 function setMode(m) {
