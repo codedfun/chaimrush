@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chaim Rush</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chaim Rush">
+<meta name="theme-color" content="#16133a">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../icon-192.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="stylesheet" href="../fonts/fonts.css">
+<style>
+/* Layout: header, difficulty switch, a 5x5 puzzle grid (numbers, signs between them), a message line, and a number pad at the bottom. */
+:root{
+  color-scheme:dark;
+  --night:#16133a; --panel:#221d52; --panel2:#2d2768; --ink:#fff6ea; --muted:#b8b1e8;
+  --coral:#ff6a55; --gold:#ffc93c; --teal:#2ec4b6; --paper:#fbf3e0; --paperInk:#2a2140;
+  --display:"Bungee",Impact,"Arial Black",sans-serif;
+  --body:"Rubik",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--night)}
+body{margin:0;min-height:100vh;min-height:100dvh;background:radial-gradient(120% 60% at 50% 0%,#3b2a6e 0%,var(--night) 60%);color:var(--ink);font-family:var(--body);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.app{max-width:520px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;gap:10px;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.top{display:flex;align-items:center;gap:8px}
+.back,.icon{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--panel2);border:0;border-radius:999px;padding:8px 13px 8px 9px;font-weight:500;font-size:14px;color:var(--ink)}
+.back svg{width:18px;height:18px}
+h1{font-family:var(--display);font-weight:400;font-size:22px;margin:0 auto}
+h1 span{color:var(--gold)}
+.solved{font-size:13px;color:var(--muted);text-align:right;min-width:64px}
+.solved b{display:block;font-family:var(--display);font-weight:400;font-size:18px;color:var(--ink)}
+.levels{display:flex;gap:8px;justify-content:center}
+.levels button{border:0;border-radius:999px;background:var(--panel2);padding:7px 16px;font-weight:700;font-size:14px;color:var(--muted)}
+.levels button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
+.paper{background:var(--paper);border-radius:22px;padding:12px;box-shadow:0 12px 30px rgb(0 0 0/.35);align-self:center;width:100%;max-width:420px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;gap:2px}
+.cell{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #7a4a2e;background:#fffaf0;color:var(--paperInk);font-family:var(--display);display:grid;place-items:center;font-size:clamp(18px,6.2vw,30px);padding:0;line-height:1}
+.cell.given{cursor:default}
+.cell.blank{background:#fff;border-style:dashed;border-color:#b08a6a;color:#2a6df4}
+.cell.sel{border:4px solid var(--gold);box-shadow:0 0 0 4px rgb(255 201 60/.35);border-style:solid}
+.cell.bad{background:#ffd9d2;border-color:var(--coral);color:#b8402f}
+.cell.good{background:#d6f5ef;border-color:var(--teal);color:#0d6b60}
+.cell.small{font-size:clamp(14px,4.6vw,22px)}
+.op{font-family:var(--display);font-size:clamp(22px,7vw,34px);color:var(--paperInk);line-height:1}
+.op.eq{color:#7a4a2e}
+.msg{min-height:46px;display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;font-weight:700;flex-wrap:wrap}
+.msg .win{font-family:var(--display);font-size:20px;color:var(--teal)}
+.msg .oops{color:var(--coral)}
+.next{border:0;border-radius:14px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:17px;padding:10px 18px;box-shadow:0 4px 0 #b8402f}
+.next:active{transform:translateY(3px);box-shadow:0 1px 0 #b8402f}
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:auto}
+.pad button{height:52px;border:0;border-radius:12px;background:#5b5494;font-weight:700;font-size:21px}
+.pad button.wide{grid-column:span 3;font-size:15px}
+.pad button.check{background:var(--teal);color:#06231f}
+.pad button.hint{background:var(--panel2);font-size:15px}
+.pad svg{width:24px;height:24px}
+.help{font-size:13px;color:var(--muted);text-align:center;margin:0;line-height:1.4}
+@media (prefers-reduced-motion:reduce){.next:active{transform:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <a class="back" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>Games</a>
+    <h1>Chaim<span>Math</span></h1>
+    <div class="solved"><b id="solvedN">0</b>solved</div>
+  </div>
+  <div class="levels" role="group" aria-label="Difficulty">
+    <button data-l="easy" aria-pressed="true">Easy</button><button data-l="medium" aria-pressed="false">Medium</button><button data-l="hard" aria-pressed="false">Hard</button>
+  </div>
+  <p class="help">Fill in the empty circles so every row (left to right) and every column (top to bottom) works out.</p>
+  <div class="paper"><div class="grid" id="grid" aria-label="Puzzle"></div></div>
+  <div class="msg" id="msg" aria-live="polite"></div>
+  <div class="pad" id="pad" aria-label="Number pad"></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+
+/* ---------- the puzzle ----------
+   Cells (a b c / d e f / g h i). Rows: a?b=c, d?e=f, g?h=i. Columns: a?d=g, b?e=h, c?f=i. */
+const EQS = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8]];
+const SYM = { "+": "+", "-": "−", "*": "×", "/": "÷" };
+const LEVELS = {
+  easy:   { ops: ["+", "+", "-"], max: 20, blanks: [3, 4] },
+  medium: { ops: ["+", "-", "*"], max: 50, blanks: [4, 5] },
+  hard:   { ops: ["+", "-", "*", "/"], max: 99, blanks: [5, 6] },
+};
+const calc = (x, op, y) => op === "+" ? x + y : op === "-" ? x - y : op === "*" ? x * y : (y !== 0 && x % y === 0 ? x / y : NaN);
+const okNum = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
+const rnd = n => Math.floor(Math.random() * n);
+function generate(level) {
+  const L = LEVELS[level];
+  for (let tries = 0; tries < 200000; tries++) {
+    const ops = EQS.map(() => L.ops[rnd(L.ops.length)]);
+    const small = level === "easy" ? 10 : 12;
+    const pick = op => op === "*" || op === "/" ? 1 + rnd(9) : rnd(small) + 1;
+    const v = Array(9).fill(null);
+    v[0] = pick(ops[0]); v[1] = pick(ops[0]); v[3] = pick(ops[3]); v[4] = pick(ops[1]);
+    if (ops[3] === "/") v[0] = v[3] * (1 + rnd(9));
+    if (ops[0] === "/") v[1] = [1, 2, 3, 4, 5].find(d => v[0] % d === 0 && rnd(2)) || 1;
+    if (ops[1] === "/") v[4] = 1 + rnd(4), v[3] = v[4] * (1 + rnd(9));
+    v[2] = calc(v[0], ops[0], v[1]); v[5] = calc(v[3], ops[1], v[4]);
+    v[6] = calc(v[0], ops[3], v[3]); v[7] = calc(v[1], ops[4], v[4]);
+    const i1 = calc(v[6], ops[2], v[7]), i2 = calc(v[2], ops[5], v[5]);
+    if (!(i1 === i2)) continue; v[8] = i1;
+    if (!v.every(x => okNum(x, L.max))) continue;
+    if (ops.filter(o => o === "+").length === 6 && level !== "easy") continue;
+    if (level === "hard" && !ops.some(o => o === "/" || o === "*")) continue;
+    if (v.filter(x => x === 0).length > 1) continue;
+    // hide cells one at a time, keeping it solvable step by step
+    const shown = Array(9).fill(true), want = L.blanks[0] + rnd(L.blanks[1] - L.blanks[0] + 1);
+    let hidden = 0;
+    for (const k of [...Array(9).keys()].sort(() => Math.random() - 0.5)) {
+      if (hidden >= want) break;
+      shown[k] = false;
+      if (solvable(v, ops, shown)) hidden++; else shown[k] = true;
+    }
+    if (hidden < want) continue;
+    return { v, ops, shown };
+  }
+  throw new Error("no puzzle");
+}
+// fill in, over and over, any equation with exactly one unknown; solvable if everything gets filled
+function solvable(v, ops, shown) {
+  const known = v.map((x, k) => shown[k] ? x : null);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    EQS.forEach(([x, y, z], q) => {
+      const op = ops[q], u = [x, y, z].filter(k => known[k] === null);
+      if (u.length !== 1) return;
+      const k = u[0]; let val;
+      if (k === z) val = calc(known[x], op, known[y]);
+      else if (k === x) val = op === "+" ? known[z] - known[y] : op === "-" ? known[z] + known[y] : op === "*" ? (known[y] ? known[z] / known[y] : NaN) : known[z] * known[y];
+      else val = op === "+" ? known[z] - known[x] : op === "-" ? known[x] - known[z] : op === "*" ? (known[x] ? known[z] / known[x] : NaN) : (known[z] ? known[x] / known[z] : NaN);
+      if (val !== v[k]) return;                 // would be ambiguous (e.g. 0 × ? = 0): not a clean step
+      known[k] = val; changed = true;
+    });
+  }
+  return known.every(x => x !== null);
+}
+
+/* ---------- state ---------- */
+let level = store.get("math:level") || "easy"; if (!LEVELS[level]) level = "easy";
+let P, entry, sel = null, done = false, checked = false;
+let solved = +(store.get("math:solved") || 0);
+function newPuzzle() {
+  P = generate(level); entry = P.v.map((x, k) => P.shown[k] ? String(x) : ""); done = false; checked = false;
+  sel = entry.findIndex((x, k) => !P.shown[k]);
+  store.set("math:cur", JSON.stringify({ level, P, entry })); draw(); say("");
+}
+function save() { store.set("math:cur", JSON.stringify({ level, P, entry, done })); }
+
+/* ---------- drawing ---------- */
+function draw() {
+  const g = $("#grid"); g.innerHTML = "";
+  const cell = k => {
+    const b = document.createElement("button"); b.type = "button";
+    const given = P.shown[k], val = entry[k];
+    b.className = "cell " + (given ? "given" : "blank") + (sel === k && !done ? " sel" : "") + (val.length > 2 ? " small" : "");
+    if (!given && (checked || done) && val !== "") b.classList.add(+val === P.v[k] ? "good" : "bad");
+    b.textContent = val;
+    b.setAttribute("aria-label", given ? `${val}` : `Empty circle${val ? ", you entered " + val : ""}`);
+    if (!given) b.onclick = () => { if (done) return; sel = k; checked = false; draw(); };
+    else b.tabIndex = -1;
+    return b;
+  };
+  const op = (t, eq) => { const s = document.createElement("span"); s.className = "op" + (eq ? " eq" : ""); s.textContent = t; return s; };
+  const blank = () => document.createElement("span");
+  const O = P.ops;
+  // row 1, column signs, row 2, equals signs, row 3
+  [[cell(0), op(SYM[O[0]]), cell(1), op("=", 1), cell(2)],
+   [op(SYM[O[3]]), blank(), op(SYM[O[4]]), blank(), op(SYM[O[5]])],
+   [cell(3), op(SYM[O[1]]), cell(4), op("=", 1), cell(5)],
+   [op("=", 1), blank(), op("=", 1), blank(), op("=", 1)],
+   [cell(6), op(SYM[O[2]]), cell(7), op("=", 1), cell(8)]].flat().forEach(el => g.appendChild(el));
+  $("#solvedN").textContent = solved;
+  document.querySelectorAll(".levels button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.l === level)));
+}
+function say(html) { $("#msg").innerHTML = html; const n = $("#nextBtn"); if (n) n.onclick = newPuzzle; }
+
+/* ---------- typing numbers ---------- */
+function type(k) {
+  if (done || sel === null) return;
+  checked = false;
+  if (k === "del") entry[sel] = entry[sel].slice(0, -1);
+  else if (entry[sel].length < 3) entry[sel] = (entry[sel] === "0" ? "" : entry[sel]) + k;
+  save(); draw(); say("");
+  if (entry.every(x => x !== "")) check(true);
+}
+function moveSel(d) {
+  const blanks = [...Array(9).keys()].filter(k => !P.shown[k]); if (!blanks.length) return;
+  const i = blanks.indexOf(sel); sel = blanks[(i + d + blanks.length) % blanks.length]; draw();
+}
+function check(auto) {
+  const wrong = [...Array(9).keys()].filter(k => !P.shown[k] && +entry[k] !== P.v[k]);
+  const empty = entry.some(x => x === "");
+  if (!wrong.length && !empty) {
+    done = true; solved++; store.set("math:solved", solved); save(); draw();
+    say(`<span class="win">Solved!</span><button class="next" id="nextBtn">Next puzzle</button>`);
+    setTimeout(() => $("#nextBtn")?.focus(), 50); return;
+  }
+  if (auto && empty) return;
+  checked = true; draw();
+  say(empty ? `<span class="oops">Fill in every circle first</span>` : `<span class="oops">${wrong.length === 1 ? "One circle isn't" : wrong.length + " circles aren't"} right yet. Try again!</span>`);
+}
+function hint() {
+  if (done) return;
+  const k = [...Array(9).keys()].find(k => !P.shown[k] && +entry[k] !== P.v[k] || (!P.shown[k] && entry[k] === ""));
+  if (k === undefined) return check(false);
+  entry[k] = String(P.v[k]); sel = k; save(); draw(); say(`<span>Here's one: ${P.v[k]}</span>`);
+  if (entry.every(x => x !== "")) check(true);
+}
+const pad = $("#pad");
+["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].forEach(n => { const b = document.createElement("button"); b.textContent = n; b.onclick = () => type(n); pad.appendChild(b); });
+const mk = (cls, html, label, fn) => { const b = document.createElement("button"); b.className = cls; b.innerHTML = html; b.setAttribute("aria-label", label); b.onclick = fn; pad.appendChild(b); };
+mk("hint", "Hint", "Show one answer", hint);
+mk("", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12zM18 9l-6 6M12 9l6 6"/></svg>', "Delete", () => type("del"));
+mk("check wide", "Check", "Check my answers", () => check(false));
+addEventListener("keydown", e => {
+  if (/^[0-9]$/.test(e.key)) type(e.key);
+  else if (e.key === "Backspace") type("del");
+  else if (e.key === "Enter") { e.preventDefault(); if (done) newPuzzle(); else check(false); }
+  else if (e.key === "ArrowRight" || e.key === "Tab") { e.preventDefault(); moveSel(e.shiftKey ? -1 : 1); }
+  else if (e.key === "ArrowLeft") moveSel(-1);
+});
+document.querySelectorAll(".levels button").forEach(b => b.onclick = () => { level = b.dataset.l; store.set("math:level", level); newPuzzle(); });
+
+// pick up where you left off
+try { const c = JSON.parse(store.get("math:cur") || "null"); if (c && c.level === level && c.P && !c.done) { P = c.P; entry = c.entry; sel = entry.findIndex((x, k) => !P.shown[k] && x === ""); if (sel < 0) sel = P.shown.findIndex(s => !s); draw(); } else newPuzzle(); } catch { newPuzzle(); }
+})();
+</script>
+<script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("../sw.js", { scope: "../" }).catch(() => {}));</script>
+</body>
+</html>
