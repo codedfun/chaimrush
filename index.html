@@ -83,6 +83,13 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 .big{border:0;border-radius:16px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:24px;padding:14px;width:100%;box-shadow:0 5px 0 #b8402f}
 .big:active{transform:translateY(3px);box-shadow:0 2px 0 #b8402f}
 .big:disabled{opacity:.6}
+.mwrap{display:flex;flex-direction:column;gap:6px;width:100%}
+.mlbl{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teal)}
+.mlbl small{font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted)}
+.mpick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.mpick::-webkit-scrollbar{display:none}
+.mpick button{flex:none;border:0;border-radius:999px;background:var(--panel2);color:var(--muted);padding:8px 13px;font-weight:700;font-size:13.5px}
+.mpick button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
 .ghost{border:0;background:transparent;color:var(--muted);font-weight:500;padding:8px;text-decoration:underline;text-underline-offset:3px}
 .how{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center;font-size:11.5px;line-height:1.25;color:var(--muted)}
 .how div{background:var(--panel2);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}
@@ -192,6 +199,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
     </div>
     <p class="err" id="loadErr" hidden>The 3D engine couldn't load. Check your connection and reload the page.</p>
     <div class="keys"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4.5" fill="none" stroke="#ffc93c" stroke-width="2.6"/><path d="M12.5 12h9M18 12v3.5M21 12v2.5" stroke="#ffc93c" stroke-width="2.6" stroke-linecap="round"/></svg><div><b id="menuKeys">0 keys</b><span id="menuKeyNext"></span><span class="mb" id="menuBoards"></span></div><small>Every 1,000 coins earns a key. Use one to keep running after you're caught.</small></div>
+    <div class="mwrap"><span class="mlbl">Music <small>(tap to hear it)</small></span><div class="mpick" role="group" aria-label="Choose the music"></div></div>
     <button class="big" id="playBtn">Run!</button>
     <p class="note">Photos stay on this phone. They're never uploaded.</p>
     <details class="install" id="installBox">
@@ -259,6 +267,7 @@ h2{font-family:var(--display);font-weight:400;font-size:26px;margin:0;line-heigh
 <div class="screen" id="pauseScreen" hidden>
   <div class="card">
     <h2>Paused</h2>
+    <div class="mwrap"><span class="mlbl">Music</span><div class="mpick" role="group" aria-label="Choose the music"></div></div>
     <button class="big" id="resumeBtn">Keep running</button>
     <button class="ghost" id="quitBtn">Quit to menu</button>
   </div>
@@ -412,7 +421,7 @@ function noise(dur, vol = 0.12, freq = 900) {
 /* ---------- music: 128 bpm, A minor, four-bar loop; an extra lead layer joins during the jetpack ---------- */
 let musicOn = store.get("music") !== "0";
 const music = { gain: null, comp: null, delay: null, timer: null, step: 0, next: 0, noise: null, playing: false, hype: 0 };
-const BPM = 90, STEP = 60 / BPM / 4;
+let STEP = 60 / 90 / 4;   // one 16th note; each track sets its own tempo
 const hz = m => 440 * Math.pow(2, (m - 69) / 12);
 // eight bars over a low D pedal, slow ominous chord shifts: Dm, Bb, Gm, Eb, A (roots, MIDI)
 const ROOTS = [38, 38, 34, 34, 31, 31, 39, 33];
@@ -445,7 +454,7 @@ function hit(t, dur, vol, type, freq) {
   v.gain.setValueAtTime(vol, t); v.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   src.connect(f).connect(v).connect(music.comp); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
 }
-function scheduleStep(i, t) {
+function darkCity(i, t) {
   const bar = Math.floor(i / 16) % 8, s16 = i % 16, root = ROOTS[bar], tri = TRIADS[bar], hype = music.hype > 0.5;
   // relentless low string ostinato on the pedal, accents grouped 3+3+3+3+4
   const accent = [0, 3, 6, 9, 12].includes(s16);
@@ -475,12 +484,88 @@ function scheduleStep(i, t) {
   // sparse brass: long held notes, doubled an octave down
   if (s16 === 0 && HOLD[bar]) { const n = HOLD[bar]; tone(t, hz(n), STEP * 26, "sawtooth", 0.06, { cut: 1300, attack: 0.5, send: 0.35 }); tone(t, hz(n - 12), STEP * 26, "sawtooth", 0.05, { cut: 700, attack: 0.5 }); if (hype) tone(t, hz(n + 12), STEP * 20, "sawtooth", 0.035, { cut: 2600, attack: 0.4, send: 0.5 }); }
 }
+/* ---------- more original tracks, each a 16-step-per-bar pattern ---------- */
+const at = (arr, i) => arr[((i % arr.length) + arr.length) % arr.length];
+function kick(t, v = 0.9, from = 130) { tone(t, from, 0.35, "sine", v, { glide: 42, cut: 500 }); }
+function snare(t, v = 0.3, send = 0) { hit(t, 0.18, v, "bandpass", 1900); tone(t, 210, 0.12, "triangle", v * 0.6, { glide: 140, cut: 1500, send }); }
+function hat(t, v = 0.05, len = 0.03) { hit(t, len, v, "highpass", 9000); }
+
+// Neon Chase: synthwave, 116 bpm, E minor (Em C G D), driving octave bass, arpeggios and a lead in the second half
+const NEON = { roots: [40, 36, 43, 38], tri: [[64, 67, 71], [60, 64, 67], [62, 67, 71], [62, 66, 69]],
+  lead: [[0, 71, 6], [6, 69, 2], [8, 67, 4], [12, 64, 4], [16, 64, 6], [22, 67, 2], [24, 72, 4], [28, 71, 4],
+         [32, 67, 6], [38, 71, 2], [40, 74, 6], [46, 72, 2], [48, 71, 8], [56, 69, 4], [60, 66, 4]] };
+function neonChase(i, t) {
+  const bar = Math.floor(i / 16) % 8, s16 = i % 16, b4 = bar % 4, root = NEON.roots[b4], tri = NEON.tri[b4], hype = music.hype > 0.5;
+  if (s16 % 2 === 0) tone(t, hz(root + (s16 % 4 === 2 ? 12 : 0)), STEP * 1.7, "sawtooth", 0.15, { cut: 750 });
+  if (s16 % 4 === 0) kick(t, 0.85);
+  if (s16 === 4 || s16 === 12) { snare(t, 0.32, 0.45); }
+  if (s16 % 2 === 1) hat(t, hype ? 0.07 : 0.045);
+  tone(t, hz(at(tri, [0, 1, 2, 1][s16 % 4]) + 12), STEP * 0.9, "square", 0.028, { cut: 3200, send: 0.3 });
+  if (s16 === 0) tri.forEach(m => tone(t, hz(m - 12), STEP * 16, "sawtooth", 0.025, { cut: 1400, attack: 0.25 }));
+  if (bar >= 4 || hype) { const pos = (bar % 4) * 16 + s16; for (const [st, m, d] of NEON.lead) if (st === pos) { tone(t, hz(m), STEP * d, "sawtooth", 0.07, { cut: 2600, attack: 0.02, send: 0.4 }); if (hype) tone(t, hz(m + 12), STEP * d, "square", 0.03, { cut: 4000, send: 0.3 }); } }
+  if (bar === 7 && s16 === 8) hit(t, STEP * 8, 0.12, "highpass", 3000);
+}
+
+// Turbo Rush: drum and bass, 172 bpm, F minor, rolling breakbeat, wobbling low bass and short chord stabs
+const TURBO = { roots: [41, 41, 44, 39, 41, 41, 36, 39], stab: [[65, 68, 72], [65, 68, 72], [68, 72, 75], [63, 67, 70]] };
+function turboRush(i, t) {
+  const bar = Math.floor(i / 16) % 8, s16 = i % 16, root = TURBO.roots[bar], hype = music.hype > 0.5;
+  if (s16 === 0 || s16 === 10 || (bar % 2 === 1 && s16 === 2)) kick(t, 0.95, 150);
+  if (s16 === 4 || s16 === 12) snare(t, 0.36, 0.25);
+  if (s16 === 7 || s16 === 15) hit(t, 0.06, 0.08, "bandpass", 2200);
+  if (s16 % 2 === 0 || hype) hat(t, s16 % 4 === 2 ? 0.06 : 0.035);
+  if (s16 === 0) { const d = STEP * 16; tone(t, hz(root - 12), d, "sawtooth", 0.11, { cut: 420, attack: 0.02 }); tone(t, hz(root - 12) * 1.012, d, "sawtooth", 0.09, { cut: 380, attack: 0.02 }); tone(t, hz(root - 24), d, "sine", 0.3, { cut: 200, attack: 0.02 }); }
+  if (s16 === 8 && bar % 2 === 1) tone(t, hz(root - 12), STEP * 8, "sawtooth", 0.1, { cut: 900, glide: hz(root - 17) });
+  if ((s16 === 3 || s16 === 11) && bar % 4 >= 2) at(TURBO.stab, bar).forEach(m => tone(t, hz(m), STEP * 1.2, "square", 0.035, { cut: 2400, send: 0.35 }));
+  if (hype && s16 % 4 === 0) tone(t, hz(at(at(TURBO.stab, bar), s16 / 4) + 12), STEP * 2, "sawtooth", 0.045, { cut: 3000, send: 0.4 });
+  if (bar === 7 && s16 >= 8) hat(t, 0.03 + (s16 - 8) * 0.012, 0.05);
+}
+
+// Pixel Sprint: chiptune, 150 bpm, C major (C Am F G), bouncy pulse bass and a bright square-wave tune
+const PIXEL = { roots: [36, 33, 29, 31], tri: [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]],
+  tune: [72, 0, 76, 79, 76, 0, 74, 72, 69, 0, 72, 76, 74, 0, 72, 69, 65, 0, 69, 72, 74, 72, 69, 65, 67, 0, 71, 74, 79, 0, 77, 74,
+         72, 0, 76, 79, 81, 0, 79, 76, 76, 74, 72, 0, 69, 72, 76, 0, 77, 0, 76, 74, 72, 0, 69, 0, 71, 0, 74, 0, 72, 0, 0, 0] };
+function pixelSprint(i, t) {
+  const bar = Math.floor(i / 16) % 8, s16 = i % 16, b4 = bar % 4, root = PIXEL.roots[b4], tri = PIXEL.tri[b4], hype = music.hype > 0.5;
+  if (s16 % 2 === 0) tone(t, hz(root + 12 + (s16 % 4 === 2 ? 7 : 0)), STEP * 1.6, "square", 0.17, { cut: 1800 });
+  if (s16 === 0 || s16 === 8 || s16 === 11) tone(t, 160, 0.14, "square", 0.6, { glide: 50, cut: 900 });
+  if (s16 === 4 || s16 === 12) hit(t, 0.12, 0.34, "highpass", 2500);
+  if (s16 % 2 === 1 || hype) hit(t, 0.02, 0.07, "highpass", 8000);
+  if (s16 % 2 === 0) { const n = PIXEL.tune[(bar * 8 + s16 / 2) % 64]; if (n) { tone(t, hz(n), STEP * 1.8, "square", 0.12, { cut: 5000, send: 0.2 }); if (hype) tone(t, hz(n + 12), STEP * 1.5, "square", 0.06, { cut: 6000 }); } }
+  else tone(t, hz(at(tri, (s16 >> 1)) + 12), STEP * 0.8, "triangle", 0.07, { cut: 4000 });
+}
+
+// Street Bounce: hip-hop, 140 bpm half-time, G minor, gliding deep bass, rolling hi-hats and a bell tune
+const BOUNCE = { roots: [43, 43, 39, 41], bell: [[0, 79], [3, 77], [6, 74], [10, 77], [12, 79], [16, 82], [19, 79], [22, 77], [26, 74], [28, 70]] };
+function streetBounce(i, t) {
+  const bar = Math.floor(i / 16) % 8, s16 = i % 16, b4 = bar % 4, root = BOUNCE.roots[b4], hype = music.hype > 0.5;
+  if (s16 === 0 || s16 === 7 || s16 === 10) { const glide = s16 === 10 && b4 === 3 ? hz(root - 22) : 0; tone(t, hz(root - 12), STEP * (s16 === 0 ? 6 : 3), "sine", 0.55, { cut: 600, glide: glide || hz(root - 12) * 0.99 }); kick(t, 0.6, 110); }
+  if (s16 === 8) { snare(t, 0.38, 0.3); hit(t, 0.08, 0.2, "bandpass", 1200); }
+  hat(t, s16 % 2 === 0 ? 0.05 : 0.025);
+  if ((bar % 2 === 1 && s16 >= 12) || (hype && s16 % 4 === 3)) { hat(t + STEP / 2, 0.035); }
+  if (bar % 2 === 0 && s16 >= 13) { hat(t + STEP / 3, 0.03); hat(t + STEP * 2 / 3, 0.03); }
+  const pos = (bar % 2) * 16 + s16; for (const [st, m] of BOUNCE.bell) if (st === pos) { tone(t, hz(m), 0.5, "triangle", 0.05, { cut: 5000, send: 0.35 }); tone(t, hz(m) * 2, 0.25, "sine", 0.02, { cut: 7000 }); }
+  if (s16 === 0 && b4 === 0) [55, 58, 62].forEach(m => tone(t, hz(m), STEP * 64, "triangle", 0.02, { cut: 1200, attack: 0.8 }));
+  if (hype && s16 % 4 === 0) tone(t, hz(root + 24), STEP * 2, "sawtooth", 0.03, { cut: 2600, send: 0.4 });
+}
+
+const TRACKS = [
+  { id: "dark", name: "Dark City", bpm: 90, echo: 3, play: darkCity },
+  { id: "neon", name: "Neon Chase", bpm: 116, echo: 3, play: neonChase },
+  { id: "turbo", name: "Turbo Rush", bpm: 172, echo: 6, play: turboRush },
+  { id: "pixel", name: "Pixel Sprint", bpm: 150, echo: 3, play: pixelSprint },
+  { id: "bounce", name: "Street Bounce", bpm: 140, echo: 6, play: streetBounce },
+];
+let trackIx = Math.max(0, TRACKS.findIndex(tr => tr.id === store.get("track")));
+function applyTrack() { STEP = 60 / TRACKS[trackIx].bpm / 4; if (music.delay) music.delay.delayTime.setTargetAtTime(Math.min(0.95, STEP * TRACKS[trackIx].echo), actx.currentTime, 0.05); }
+applyTrack();
 function musicTick() {
-  while (music.next < actx.currentTime + 0.12) { scheduleStep(music.step, music.next); music.next += STEP; music.step++; }
+  while (music.next < actx.currentTime + 0.12) { TRACKS[trackIx].play(music.step, music.next); music.next += STEP; music.step++; }
 }
 function musicStart() {
   if (!actx || !musicOn || muted) return;
   musicInit();
+  applyTrack();
   if (!music.playing) { music.playing = true; music.next = actx.currentTime + 0.05; music.timer = setInterval(musicTick, 25); }
   music.gain.gain.cancelScheduledValues(actx.currentTime);
   music.gain.gain.setTargetAtTime(0.45, actx.currentTime, 0.3);
@@ -493,6 +578,21 @@ function musicStop(fast) {
 }
 function syncMusicBtn() { $("#musicBtn").setAttribute("aria-label", musicOn ? "Music off" : "Music on"); $("#musicSlash").style.display = musicOn ? "none" : ""; }
 syncMusicBtn();
+let previewT = null;
+function pickTrack(ix) {
+  trackIx = ix; store.set("track", TRACKS[ix].id); music.step = 0; applyTrack(); renderPickers();
+  if (!musicOn) { musicOn = true; store.set("music", "1"); syncMusicBtn(); }
+  if (mode === "play") return;                                       // the paused/menu screens get a short preview
+  unlockAudio(); if (muted || !actx) return;
+  clearTimeout(previewT); musicStart(); previewT = setTimeout(() => { if (mode !== "play") musicStop(); }, 7000);
+}
+function renderPickers() {
+  document.querySelectorAll(".mpick").forEach(box => {
+    box.innerHTML = TRACKS.map((tr, i) => `<button type="button" data-ix="${i}" aria-pressed="${i === trackIx}">${tr.name}</button>`).join("");
+    box.querySelectorAll("button").forEach(b => b.onclick = () => pickTrack(+b.dataset.ix));
+  });
+}
+renderPickers();
 $("#musicBtn").onclick = () => { musicOn = !musicOn; store.set("music", musicOn ? "1" : "0"); syncMusicBtn(); if (musicOn && mode === "play") musicStart(); else musicStop(true); };
 const sfx = {
   coin: () => { blip(1175, 0.07, "square", 0.035); blip(1568, 0.1, "square", 0.035, 0, 0.055); },
@@ -1666,7 +1766,7 @@ function showOver() {
   $("#newBest").hidden = !isBest;
   $("#overScreen").hidden = false;
 }
-function setPaused(p) { mode = p ? "paused" : "play"; $("#pauseScreen").hidden = !p; p ? musicStop(true) : musicStart(); }
+function setPaused(p) { mode = p ? "paused" : "play"; $("#pauseScreen").hidden = !p; clearTimeout(previewT); p ? musicStop(true) : musicStart(); }
 function toMenu() {
   mode = "menu"; reset(false); musicStop(true);
   $("#hud").hidden = true; $("#throwBtn").hidden = true;

@@ -27,7 +27,7 @@ Power-ups float above the tracks inside a tall colored light column, so you can 
 - **Coin magnet (found on the tracks now and then):** for 30 seconds, nearby coins in every lane, including ones above or below you, fly to you on their own. A small magnet floats beside the runner while it lasts.
 - **Jump boots (found on the tracks now and then):** 30 seconds of extra-high jumps, high enough to clear a train. The runner wears big green spring boots while they last, and any coins you jump over are still collected. They flicker in the last 3 seconds.
 
-The game has an original dark, cinematic soundtrack generated in the browser (a driving low string ostinato, heavy brass hits with sub drops, drums, drones and rising tension), which intensifies during the jetpack. Use the music button to turn it off, or the speaker button to mute everything.
+The game has five original soundtracks, all generated in the browser; pick one under **Music** on the start screen (tap one to hear a 7-second preview) or on the pause screen: **Dark City** (dark and cinematic: a driving low string ostinato, heavy brass hits, drones), **Neon Chase** (synthwave: octave bass, arpeggios and a soaring lead), **Turbo Rush** (fast drum and bass with a wobbling low bass and chord stabs), **Pixel Sprint** (bouncy chiptune) and **Street Bounce** (hip-hop: gliding deep bass, rolling hi-hats and a bell tune). Every track gets an extra layer during the jetpack, and your choice is saved on the phone. Use the music button to turn it off, or the speaker button to mute everything.
 
 On a computer, use the arrow keys (or WASD) to move, F or Enter to throw, B to ride a hoverboard, and Escape to pause.
 
