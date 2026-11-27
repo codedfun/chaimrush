@@ -113,7 +113,7 @@ label.sbtn{display:block}
       </div>
     </div>
     <div class="levels" id="levels"></div>
-    <div class="how"><div>◀ ▶ to run</div><div>Jump button, hold to go higher. Tap again in the air to double jump</div><div>Hit crates from below for power-ups</div><div>Reach the flag halfway: lose a life after it and you start there</div><div>Got a power-up you don't need? It's saved in the box at the top. Tap the box to use it</div></div>
+    <div class="how"><div>◀ ▶ to run</div><div>Jump button, hold to go higher. Tap again in the air to double jump, and once more to triple jump</div><div>Hit crates from below for power-ups</div><div>Reach the flag halfway: lose a life after it and you start there</div><div>Got a power-up you don't need? It's saved in the box at the top. Tap the box to use it</div></div>
     <button class="big" id="playBtn">Play</button>
   </div>
 </div>
@@ -222,6 +222,7 @@ function beep(f, d = 0.08, type = "square", v = 0.05, slide = 0, delay = 0) {
 const sfx = {
   jump: () => beep(330, 0.16, "triangle", 0.08, 1.9),
   jump2: () => beep(520, 0.14, "triangle", 0.07, 1.7),
+  jump3: () => beep(700, 0.14, "triangle", 0.07, 1.6),
   coin: () => { beep(1046, 0.06, "square", 0.035); beep(1568, 0.1, "square", 0.035, 0, 0.05); },
   stomp: () => beep(220, 0.14, "square", 0.07, 0.5),
   bump: () => beep(160, 0.08, "triangle", 0.08),
@@ -395,7 +396,7 @@ function setBig(b) { P.big = b; P.h = b ? BIG_H : SMALL_H; P.grow = 0.5; if (!b)
 function syncFire() { const f = document.getElementById("btnF"); if (f) f.hidden = !(P && P.spark); }
 function loadLevel(i, carry) {
   lvlIndex = i; level = LEVELS[i].build();
-  P = { x: level.start.x, y: level.start.y, vx: 0, vy: 0, dbl: false, w: 0.72, h: SMALL_H, big: false, spark: false, grow: 0, onGround: false, coyote: 0, face: 1, run: 0, inv: 0, squash: 0 };
+  P = { x: level.start.x, y: level.start.y, vx: 0, vy: 0, dbl: 0, w: 0.72, h: SMALL_H, big: false, spark: false, grow: 0, onGround: false, coyote: 0, face: 1, run: 0, inv: 0, squash: 0 };
   if (carry) { setBig(carry.big); P.spark = carry.spark && carry.big; }
   setBig(true); P.grow = 0; P.spark = true;                     // every level starts with the Spark Orb power (big, with sparks to throw)
   items = []; shots = []; syncFire();
@@ -508,10 +509,10 @@ function update(dt) {
   P.vx = Math.max(-maxV, Math.min(maxV, P.vx));
   P.coyote = P.onGround ? 0.1 : Math.max(0, P.coyote - dt);
   const buffered = performance.now() - jumpPressedAt < 130;
-  if (P.onGround) P.dbl = true;                                 // landing gives the double jump back
+  if (P.onGround) P.dbl = 2;                                    // landing gives back both air jumps (double and triple jump)
   if (buffered && (P.onGround || P.coyote > 0)) { P.vy = -18; P.onGround = false; P.coyote = 0; jumpPressedAt = -1; sfx.jump(); P.squash = -0.25; }
-  else if (buffered && P.dbl && !P.onGround) {                  // double jump: tap jump again in the air
-    P.dbl = false; P.vy = -15; jumpPressedAt = -1; sfx.jump2(); P.squash = -0.3;
+  else if (buffered && P.dbl > 0 && !P.onGround) {              // double and triple jump: tap jump again in the air
+    const third = P.dbl === 1; P.dbl--; P.vy = third ? -13.5 : -15; jumpPressedAt = -1; third ? sfx.jump3() : sfx.jump2(); P.squash = -0.3;
     for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; pops.push({ kind: "puff", x: P.x + Math.cos(a) * 0.2, y: P.y + 0.05, vx: Math.cos(a) * 3, vy: Math.sin(a) * 1.2 + 0.6, t: 0.35 }); }
   }
   if (!jumpHeld && P.vy < -5.5) P.vy = -5.5;                   // release early for a short hop
