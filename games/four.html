@@ -45,6 +45,22 @@ h1 span{color:var(--gold)}
 .cell.win .disc{box-shadow:0 0 0 4px #fff,0 0 18px #fff}
 .status{font-family:var(--display);font-size:20px;text-align:center;min-height:1.3em;margin:0}
 .status .r{color:var(--coral)} .status .y{color:var(--gold)}
+.series{font-weight:700;font-size:14px;color:var(--muted);text-align:center;margin:-6px 0 0;display:flex;gap:8px;align-items:center;justify-content:center}
+.series b{font-family:var(--display);font-weight:400;font-size:18px;color:var(--ink)}
+.series .r{color:var(--coral)} .series .y{color:var(--gold)}
+.endBanner{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:0 12px calc(14px + env(safe-area-inset-bottom,0px));z-index:6;pointer-events:none}
+.endBanner .box{pointer-events:auto;width:100%;max-width:420px;background:var(--panel);border:2px solid var(--panel2);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;box-shadow:0 -10px 40px rgb(0 0 0/.5);animation:rise .35s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes rise{from{transform:translateY(110%)}to{transform:none}}
+.endBanner h2{font-family:var(--display);font-weight:400;font-size:30px;margin:0;line-height:1}
+.endBanner h2.r{color:var(--coral)} .endBanner h2.y{color:var(--gold)}
+.endBanner .score{font-size:15px;color:var(--muted)}
+.endBanner .score b{font-family:var(--display);font-weight:400;font-size:22px;color:var(--ink);margin:0 4px}
+.endBanner .rematch{border:0;border-radius:16px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:22px;padding:13px 0;width:100%;box-shadow:0 5px 0 #b8402f}
+.endBanner .rematch:active{transform:translateY(3px);box-shadow:0 2px 0 #b8402f}
+.fmt{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.fmt button{border:0;border-radius:999px;background:var(--panel2);padding:8px 13px;font-weight:700;font-size:13.5px;color:var(--muted)}
+.fmt button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
+.endBanner .peek{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:13.5px;padding:2px}
 .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .controls button{border:0;border-radius:999px;background:var(--panel2);padding:10px 16px;font-weight:700;font-size:14px}
 .controls button.on{background:var(--teal);color:#06231f}
@@ -88,6 +104,7 @@ h1 span{color:var(--gold)}
   <p class="sub">Drop your discs. Get four in a line to win.</p>
   <div class="board" id="board" aria-hidden="true"></div>
   <p class="status" id="status" hidden aria-live="polite"></p>
+  <p class="series" id="seriesBar" hidden></p>
   <div class="controls" id="controls" hidden>
     <button id="vsCpu" class="on" aria-pressed="true">Vs computer</button>
     <button id="vs2" aria-pressed="false">2 players</button>
@@ -108,6 +125,18 @@ h1 span{color:var(--gold)}
   </section>
   <button class="start" id="startBtn">Start playing</button>
   <p class="how">Take turns dropping red and yellow discs into the board. The first to line up four across, down or diagonally wins.</p>
+</div>
+
+<div class="endBanner" id="endBanner" hidden role="dialog" aria-labelledby="endTitle">
+  <div class="box">
+    <h2 id="endTitle">You win!</h2>
+    <div class="score" id="endScore"></div>
+    <button class="rematch" id="rematchBtn">Rematch</button>
+    <div class="fmt" role="group" aria-label="Match length">
+      <button data-n="1">Single game</button><button data-n="3">Best of 3</button><button data-n="5">Best of 5</button>
+    </div>
+    <button class="peek" id="peekBtn">See the board</button>
+  </div>
 </div>
 
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
@@ -168,12 +197,43 @@ function lineFrom(g, r, c) {
   return null;
 }
 const openRow = (g, c) => { for (let r = ROWS - 1; r >= 0; r--) if (!g[r][c]) return r; return -1; };
+/* ---- matches: a single game, best of 3 or best of 5 ---- */
+const series = { len: [1, 3, 5].includes(+(store4("four:series"))) ? +store4("four:series") : 1, a: 0, b: 0, done: false };
+function store4(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } }
+const need = () => Math.ceil(series.len / 2);
+const sideNames = () => mode === "cpu" ? ["You", "Computer"] : mode === "local" ? ["Red", "Yellow"] : ["You", net.match ? net.match.pin : "Friend"];
+function resetSeries() { series.a = 0; series.b = 0; series.done = false; }
+function syncSeriesBar() {
+  const bar = $("#seriesBar"), [A, B] = sideNames();
+  bar.hidden = series.len === 1 || (mode === "online" && !net.match);
+  bar.innerHTML = `Best of ${series.len} · ${A} <b>${series.a}</b> – <b>${series.b}</b> ${B}`;
+}
+function endGame(winner) {                       // winner: "a", "b" or "" for a draw
+  if (winner) series[winner]++;
+  if (series[winner] >= need()) series.done = true;
+  syncSeriesBar();
+  const [A, B] = sideNames(), t = $("#endTitle");
+  let title, cls = "";
+  if (!winner) title = "It's a draw";
+  else if (mode === "local") { title = (winner === "a" ? "Red" : "Yellow") + (series.done && series.len > 1 ? " wins the match!" : " wins!"); cls = winner === "a" ? "r" : "y"; }
+  else { const me = winner === "a"; title = me ? (series.done && series.len > 1 ? "You win the match!" : "You win!") : (mode === "cpu" ? "The computer wins" : `${B} wins`) + (series.done && series.len > 1 ? " the match" : ""); cls = me ? "r" : "y"; }
+  t.textContent = title; t.className = cls;
+  $("#endScore").innerHTML = series.len > 1 ? `Best of ${series.len}: ${A} <b>${series.a}</b> – <b>${series.b}</b> ${B}` : "";
+  $("#rematchBtn").textContent = series.len > 1 ? (series.done ? "New match" : "Next game") : "Rematch";
+  syncFmt();
+  setTimeout(() => { if (over) $("#endBanner").hidden = false; }, 900);
+}
+function syncFmt() { document.querySelectorAll(".fmt button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.n === series.len))); }
+function setSeries(n, fromFriend) {
+  series.len = n; store4("four:series", String(n)); resetSeries(); syncFmt(); syncSeriesBar();
+}
 function startGame() {
+  $("#endBanner").hidden = true;
   clearInterval(demo); $("#startBtn").hidden = true; $(".how").hidden = true; $("#status").hidden = false; $("#controls").hidden = false; $("#online").hidden = mode !== "online";
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0)); turn = 1; over = false; busy = false;
   cells.forEach(c => { c.replaceChildren(); c.classList.remove("win"); });
   board.classList.add("play"); board.removeAttribute("aria-hidden"); board.setAttribute("aria-label", "Game board. Tap a column to drop a disc");
-  say();
+  say(); syncSeriesBar();
 }
 function say(text) {
   const st = $("#status");
@@ -190,8 +250,9 @@ function drop(c) {
   if (win) { over = true; win.forEach(([rr, cc]) => cells[rr * COLS + cc].classList.add("win"));
     const c = turn === 1 ? "r" : "y";
     say(mode === "online" ? (turn === net.me ? `<span class="${c}">You win!</span>` : `<span class="${c}">${net.match.pin} wins</span>`)
-      : mode === "cpu" ? (turn === 1 ? '<span class="r">You win!</span>' : '<span class="y">The computer wins</span>') : (turn === 1 ? '<span class="r">Red wins!</span>' : '<span class="y">Yellow wins!</span>')); return true; }
-  if (grid[0].every(Boolean)) { over = true; say("It's a draw"); return true; }
+      : mode === "cpu" ? (turn === 1 ? '<span class="r">You win!</span>' : '<span class="y">The computer wins</span>') : (turn === 1 ? '<span class="r">Red wins!</span>' : '<span class="y">Yellow wins!</span>'));
+    endGame(mode === "online" ? (turn === net.me ? "a" : "b") : (turn === 1 ? "a" : "b")); return true; }
+  if (grid[0].every(Boolean)) { over = true; say("It's a draw"); endGame(""); return true; }
   turn = 3 - turn; say(); return true;
 }
 /* the computer looks several moves ahead (its moves and yours) and picks the move that leaves it best off */
@@ -274,7 +335,7 @@ board.addEventListener("click", e => {
 const moves = () => grid.flat().filter(Boolean).length;
 function setMode(m) {
   if (mode === "online" && m !== "online") leaveMatch(true);
-  mode = m;
+  mode = m; resetSeries();
   for (const [id, v] of [["#vsCpu", "cpu"], ["#vs2", "local"], ["#vsNet", "online"]]) { $(id).classList.toggle("on", m === v); $(id).setAttribute("aria-pressed", String(m === v)); }
   startGame();
   if (m === "online") goOnline();
@@ -282,12 +343,24 @@ function setMode(m) {
 $("#vsCpu").onclick = () => setMode("cpu");
 $("#vs2").onclick = () => setMode("local");
 $("#vsNet").onclick = () => setMode("online");
-$("#again").onclick = () => {
-  if (mode !== "online") return startGame();
-  if (!net.match) return;
-  if (!over && moves()) { netMsg("Finish this game first, or leave it"); return; }
-  newRound(net.round + 1); send({ t: "again", round: net.round });
-};
+function rematch() {
+  if (mode === "online") {
+    if (!net.match) return;
+    if (!over && moves()) { netMsg("Finish this game first, or leave it"); return; }
+    if (series.done) resetSeries();
+    newRound(net.round + 1); send({ t: "again", round: net.round, len: series.len, fresh: series.a + series.b === 0 }); return;
+  }
+  if (series.done) resetSeries();
+  startGame();
+}
+$("#again").onclick = rematch;
+$("#rematchBtn").onclick = rematch;
+$("#peekBtn").onclick = () => { $("#endBanner").hidden = true; };
+document.querySelectorAll(".fmt button").forEach(b => b.onclick = () => {
+  const n = +b.dataset.n; setSeries(n);
+  if (mode === "online") { if (!net.match) return; newRound(net.round + 1); send({ t: "again", round: net.round, len: n, fresh: true }); return; }
+  startGame();
+});
 
 /* ===== online: phones connect directly (WebRTC) through the free public PeerJS server, like Masquerade; each phone's PIN is its address ===== */
 const PREFIX = "chaimrush-four-";
@@ -344,6 +417,7 @@ function syncOnlineUI() {
   $("#again").textContent = mode === "online" ? "Rematch" : "New game";
 }
 function startMatch(peer, base) {
+  resetSeries();
   net.match = peer; net.base = base; net.seen = Date.now(); net.inviting = null; net.invite = null;
   newRound(0); netMsg(`Playing ${peer.pin}. ${net.me === 1 ? "You're red and go first." : "You're yellow. They go first."}`); syncOnlineUI();
 }
@@ -374,7 +448,11 @@ function onNet(m) {
       if (!fromPeer || m.round !== net.round || over || turn === net.me) return;
       if (m.n !== moves() || typeof m.c !== "number") return;
       drop(m.c); break;
-    case "again": if (fromPeer && m.round === net.round + 1) newRound(m.round); break;
+    case "again": if (fromPeer && m.round === net.round + 1) {
+      if ([1, 3, 5].includes(m.len) && m.len !== series.len) { series.len = m.len; store4("four:series", String(m.len)); syncFmt(); }
+      if (m.fresh || series.done) resetSeries();
+      newRound(m.round);
+    } break;
     case "bye": if (fromPeer) { net.match = null; netMsg("Your friend left the game"); say("Your friend left"); over = true; syncOnlineUI(); } break;
     case "ping": if (fromPeer) send({ t: "pong" }); break;
   }
