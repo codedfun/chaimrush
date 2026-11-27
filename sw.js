@@ -2,7 +2,7 @@
 // On first visit, everything the games need is saved on the phone. After that:
 //  - pages are fetched fresh when online (waiting at most 2.5 seconds) and fall back to the saved copy;
 //  - the 3D engine, fonts and icons come straight from the saved copy and are refreshed in the background.
-const CACHE = "chaimrush-v42";
+const CACHE = "chaimrush-v43";
 const FILES = [
   "./",
   "index.html",

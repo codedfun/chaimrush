@@ -229,9 +229,9 @@ function record(won) {
 const ROWS_KB = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
 ROWS_KB.forEach((r, i) => {
   const row = document.createElement("div"); row.className = "kr";
-  if (i === 2) { const e = document.createElement("button"); e.className = "key wide"; e.textContent = "Enter"; e.onclick = () => key("enter"); row.appendChild(e); }
-  for (const l of r) { const b = document.createElement("button"); b.className = "key"; b.dataset.k = l; b.textContent = l; b.setAttribute("aria-label", l.toUpperCase()); b.onclick = () => key(l); row.appendChild(b); }
   if (i === 2) { const d = document.createElement("button"); d.className = "key wide"; d.setAttribute("aria-label", "Delete"); d.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12zM18 9l-6 6M12 9l6 6"/></svg>'; d.onclick = () => key("back"); row.appendChild(d); }
+  for (const l of r) { const b = document.createElement("button"); b.className = "key"; b.dataset.k = l; b.textContent = l; b.setAttribute("aria-label", l.toUpperCase()); b.onclick = () => key(l); row.appendChild(b); }
+  if (i === 2) { const e = document.createElement("button"); e.className = "key wide"; e.textContent = "Enter"; e.onclick = () => key("enter"); row.appendChild(e); }
   $("#kb").appendChild(row);
 });
 addEventListener("keydown", e => {
