@@ -397,6 +397,7 @@ function loadLevel(i, carry) {
   lvlIndex = i; level = LEVELS[i].build();
   P = { x: level.start.x, y: level.start.y, vx: 0, vy: 0, dbl: false, w: 0.72, h: SMALL_H, big: false, spark: false, grow: 0, onGround: false, coyote: 0, face: 1, run: 0, inv: 0, squash: 0 };
   if (carry) { setBig(carry.big); P.spark = carry.spark && carry.big; }
+  setBig(true); P.grow = 0; P.spark = true;                     // every level starts with the Spark Orb power (big, with sparks to throw)
   items = []; shots = []; syncFire();
   enemies = level.enemies.map(e => ({ ...e, vx: e.type === "roller" ? -1.9 : -1.2, vy: 0, w: e.type === "roller" ? 0.8 : 0.9, h: e.type === "roller" ? 0.8 : 0.7, alive: true, t: Math.random() * 6, squish: 0 }));
   coins = level.coins.map(c => ({ ...c, got: false }));
