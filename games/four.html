@@ -111,6 +111,9 @@ h1 span{color:var(--gold)}
     <button id="vsNet" aria-pressed="false">Online</button>
     <button id="again">New game</button>
   </div>
+  <div class="controls" id="levelRow" role="group" aria-label="Computer difficulty" hidden>
+    <button data-lv="easy">Easy</button><button data-lv="moderate">Moderate</button><button data-lv="hard">Hard</button>
+  </div>
   <section class="online" id="online" hidden aria-label="Play online">
     <span class="lbl">Your PIN</span>
     <div class="mypin" id="myPin" aria-live="polite">···</div>
@@ -233,7 +236,7 @@ function startGame() {
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0)); turn = 1; over = false; busy = false;
   cells.forEach(c => { c.replaceChildren(); c.classList.remove("win"); });
   board.classList.add("play"); board.removeAttribute("aria-hidden"); board.setAttribute("aria-label", "Game board. Tap a column to drop a disc");
-  say(); syncSeriesBar();
+  say(); syncSeriesBar(); if (typeof syncLevel === "function") syncLevel();
 }
 function say(text) {
   const st = $("#status");
@@ -261,7 +264,19 @@ for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) for (const [dr, dc
   const cells = []; for (let k = 0; k < 4; k++) { const rr = r + dr * k, cc = c + dc * k; if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) break; cells.push(rr * COLS + cc); }
   if (cells.length === 4) WINDOWS.push(cells);
 }
+let cpuLevel = ["easy", "moderate", "hard"].includes(store4("four:level")) ? store4("four:level") : "moderate";
+// Easy: no looking ahead. Takes a win it can see, blocks your threats only some of the time, otherwise plays loosely near the middle
+function easyMove() {
+  const cols = [3, 2, 4, 1, 5, 0, 6].filter(c => openRow(grid, c) >= 0);
+  const wins = p => cols.find(c => { const r = openRow(grid, c); grid[r][c] = p; const w = !!lineFrom(grid, r, c); grid[r][c] = 0; return w; });
+  let c = wins(2); if (c !== undefined && Math.random() < 0.9) return c;
+  c = wins(1); if (c !== undefined && Math.random() < 0.55) return c;
+  const weights = cols.map(cc => [cc, 4 - Math.abs(cc - 3) + Math.random() * 4]);
+  return weights.sort((a, b) => b[1] - a[1])[0][0];
+}
 function cpuMove() {
+  if (cpuLevel === "easy") return easyMove();
+  const moderate = cpuLevel === "moderate";
   const b = grid.flat(), heights = Array.from({ length: COLS }, (_, c) => { let h = 0; for (let r = ROWS - 1; r >= 0; r--) if (b[r * COLS + c]) h++; return h; });
   const ORDER = [3, 2, 4, 1, 5, 0, 6], WIN = 1e6;
   const winsAt = (idx, p) => { const r = Math.floor(idx / COLS), c = idx % COLS;
@@ -284,7 +299,7 @@ function cpuMove() {
     }
     return s;
   };
-  const deadline = performance.now() + 400;
+  const deadline = performance.now() + (moderate ? 150 : 400);
   let timeUp = false;
   function search(depth, alpha, beta, player, ply) {
     if (performance.now() > deadline) { timeUp = true; return 0; }
@@ -307,7 +322,7 @@ function cpuMove() {
   }
   const legal = ORDER.filter(c => heights[c] < ROWS);
   let bestCols = [legal[0]];
-  for (let depth = 2; depth <= 10; depth++) {                    // look further ahead while there's time
+  for (let depth = 2; depth <= (moderate ? 3 : 10); depth++) {   // Moderate looks 3 moves ahead; Hard as far as it can in 0.4 s                    // look further ahead while there's time
     const scores = [];
     for (const c of legal) {
       const idx = (ROWS - 1 - heights[c]) * COLS + c; b[idx] = 2; heights[c]++;
@@ -318,8 +333,13 @@ function cpuMove() {
     }
     if (timeUp) break;
     const top = Math.max(...scores.map(x => x[1]));
-    bestCols = scores.filter(x => x[1] >= top - 2).map(x => x[0]);   // near-equal moves: pick one at random for variety
+    bestCols = scores.filter(x => x[1] >= top - (moderate ? 25 : 2)).map(x => x[0]);   // Moderate is happy with "good enough" moves   // near-equal moves: pick one at random for variety
     if (top >= WIN - 50) break;
+  }
+  if (moderate && Math.random() < 0.15) {
+    const loose = legal.filter(c => { const r = openRow(grid, c); if (r <= 0) return true; grid[r][c] = 2; grid[r - 1][c] = 1; const bad = !!lineFrom(grid, r - 1, c); grid[r - 1][c] = 0; grid[r][c] = 0; return !bad; });
+    const winNow = legal.find(c => { const r = openRow(grid, c); grid[r][c] = 2; const w = !!lineFrom(grid, r, c); grid[r][c] = 0; return w; });
+    if (winNow === undefined && loose.length) return loose[Math.floor(Math.random() * loose.length)];
   }
   return bestCols[Math.floor(Math.random() * bestCols.length)];
 }
@@ -339,7 +359,13 @@ function setMode(m) {
   for (const [id, v] of [["#vsCpu", "cpu"], ["#vs2", "local"], ["#vsNet", "online"]]) { $(id).classList.toggle("on", m === v); $(id).setAttribute("aria-pressed", String(m === v)); }
   startGame();
   if (m === "online") goOnline();
+  syncLevel();
 }
+function syncLevel() {
+  $("#levelRow").hidden = mode !== "cpu" || $("#controls").hidden;
+  document.querySelectorAll("#levelRow button").forEach(b => { const on = b.dataset.lv === cpuLevel; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+}
+document.querySelectorAll("#levelRow button").forEach(b => b.onclick = () => { cpuLevel = b.dataset.lv; store4("four:level", cpuLevel); resetSeries(); startGame(); syncLevel(); });
 $("#vsCpu").onclick = () => setMode("cpu");
 $("#vs2").onclick = () => setMode("local");
 $("#vsNet").onclick = () => setMode("online");
