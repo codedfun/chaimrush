@@ -40,30 +40,31 @@ h1 span{color:var(--gold)}
 .levels{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .levels button{border:0;border-radius:999px;background:var(--panel2);padding:7px 13px;font-weight:700;font-size:14px;color:var(--muted)}
 .levels button[aria-pressed="true"]{background:var(--gold);color:#1b0f0c}
-.paper{background:var(--paper);border-radius:22px;padding:12px;box-shadow:0 12px 30px rgb(0 0 0/.35);align-self:center;width:100%;max-width:min(420px,calc(100vh - 320px));max-width:min(420px,calc(100dvh - 320px))}
+.paper{background:var(--paper);border-radius:22px;padding:12px;box-shadow:0 12px 30px rgb(0 0 0/.35);align-self:center;width:100%;max-width:420px}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;gap:2px}
-.cell{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #7a4a2e;background:#fffaf0;color:var(--paperInk);font-family:var(--display);display:grid;place-items:center;font-size:clamp(18px,6.2vw,30px);padding:0;line-height:1}
+.cell{width:100%;aspect-ratio:1;border-radius:50%;border:3px solid #7a4a2e;background:#fffaf0;color:var(--paperInk);font-family:var(--display);display:grid;place-items:center;font-size:calc(var(--cs,64px) * .4);padding:0;line-height:1}
 .cell.given{cursor:default}
 .cell.blank{background:#fff;border-style:dashed;border-color:#b08a6a;color:#2a6df4}
 .cell.sel{border:4px solid var(--gold);box-shadow:0 0 0 4px rgb(255 201 60/.35);border-style:solid}
 .cell.bad{background:#ffd9d2;border-color:var(--coral);color:#b8402f}
 .cell.good{background:#d6f5ef;border-color:var(--teal);color:#0d6b60}
-.cell.small{font-size:clamp(14px,4.6vw,22px)}
-.op{font-family:var(--display);font-size:clamp(22px,7vw,34px);color:var(--paperInk);line-height:1}
+.cell.small{font-size:calc(var(--cs,64px) * .3)}
+.op{font-family:var(--display);font-size:calc(var(--cs,64px) * .48);color:var(--paperInk);line-height:1}
 .op.eq{color:#7a4a2e}
-.msg{min-height:46px;display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;font-weight:700;flex-wrap:wrap}
+.msg{min-height:40px;display:flex;align-items:center;justify-content:center;gap:10px;text-align:center;font-weight:700;flex-wrap:wrap}
 .msg .win{font-family:var(--display);font-size:20px;color:var(--teal)}
 .msg .oops{color:var(--coral)}
 .next{border:0;border-radius:14px;background:var(--coral);color:#1b0f0c;font-family:var(--display);font-size:17px;padding:10px 18px;box-shadow:0 4px 0 #b8402f}
 .next:active{transform:translateY(3px);box-shadow:0 1px 0 #b8402f}
-.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:auto}
-.pad button{height:48px;border:0;border-radius:12px;background:#5b5494;font-weight:700;font-size:21px}
-.pad button.wide{grid-column:span 3;font-size:15px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:auto}
+.pad button{height:42px;border:0;border-radius:12px;background:#5b5494;font-weight:700;font-size:21px}
+.pad button.wide{grid-column:1 / -1;font-size:16px}
 .pad button.check{background:var(--teal);color:#06231f}
 .pad button.hint{background:var(--panel2);font-size:15px}
 .pad svg{width:24px;height:24px}
 .help{font-size:12.5px;color:var(--muted);text-align:center;margin:0;line-height:1.4}
 @media (prefers-reduced-motion:reduce){.next:active{transform:none}}
+@media (max-height:640px){.help{display:none}.pad button{height:38px}.pad{gap:5px}.msg{min-height:34px}.app{gap:7px}}
 </style>
 </head>
 <body>
@@ -211,6 +212,7 @@ function save() { store.set("math:cur", JSON.stringify({ level, P, entry, done }
 
 /* ---------- drawing ---------- */
 function draw() {
+  requestAnimationFrame(fit);
   $(".help").textContent = level === "expert" ? "Expert: tougher numbers, all different. Every answer is a whole number up to 99." : "Fill in the empty circles so every row (left to right) and every column (top to bottom) works out.";
   const g = $("#grid"); g.innerHTML = "";
   const cell = k => {
@@ -271,11 +273,22 @@ function hint() {
   if (entry.every(x => x !== "")) check(true);
 }
 const pad = $("#pad");
-["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].forEach(n => { const b = document.createElement("button"); b.textContent = n; b.onclick = () => type(n); pad.appendChild(b); });
 const mk = (cls, html, label, fn) => { const b = document.createElement("button"); b.className = cls; b.innerHTML = html; b.setAttribute("aria-label", label); b.onclick = fn; pad.appendChild(b); };
+const num = n => mk("", n, n, () => type(n));
+["1", "2", "3", "4", "5", "6", "7", "8", "9"].forEach(num);
 mk("hint", "Hint", "Show one answer", hint);
+num("0");
 mk("", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12zM18 9l-6 6M12 9l6 6"/></svg>', "Delete", () => type("del"));
 mk("check wide", "Check", "Check my answers", () => check(false));
+// make the board as big as the space left over after the header and keypad, so everything fits on one screen
+function fit() {
+  const app = $(".app"), paper = $(".paper"), cs = getComputedStyle(app), kids = [...app.children].filter(k => k.offsetParent !== null);
+  const others = kids.filter(k => k !== paper).reduce((h, k) => h + k.offsetHeight, 0) + parseFloat(cs.rowGap || 0) * (kids.length - 1) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const ratio = paper.offsetHeight / Math.max(1, paper.offsetWidth) || 0.85;     // the board is a little shorter than it is wide
+  const size = Math.max(170, Math.min(420, (innerHeight - others - 2) / ratio, app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
+  paper.style.maxWidth = size + "px"; paper.style.setProperty("--cs", ((size - 24) / 5) + "px");
+}
+addEventListener("resize", fit);
 addEventListener("keydown", e => {
   if (/^[0-9]$/.test(e.key)) type(e.key);
   else if (e.key === "Backspace") type("del");
